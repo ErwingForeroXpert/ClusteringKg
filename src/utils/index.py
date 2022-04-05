@@ -1,18 +1,43 @@
 #  -*- coding: utf-8 -*-
-#    Created on 07/01/2022 15:51:23
+#    Created on 04/04/2022 13:28:12
 #    @author: ErwingForero 
 # 
 
 import tkinter
 import os
 import time
+import yaml
 import pymsgbox 
 import pyxlsb as pyx
 import xlwings as xw
 import numpy as np
 from typing import Any
 from tkinter import filedialog
+from . import constants as const
 
+def get_config(path: str) -> dict:
+
+    """Get configuration file .yml
+
+    Args:
+        path (str): path of file
+
+    Raises:
+        Exception: if file isn't found
+
+    Returns:
+        dict: config load
+    """
+
+    if os.path.exists(path):
+        _path = path
+    else:
+        raise Exception("config.yml file is required")
+    
+    with open(_path, "r") as ymlfile:
+        cfg = yaml.load(ymlfile)
+    
+    return cfg
 
 def search_for_file_path (message: str, required: bool = False, types: 'tuple|str' = "*")-> 'str|None':
     """Search for a file path.

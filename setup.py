@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Learn more: https://github.com/ErwingForeroXpert/AutPresupuesto
+# Learn more: https://github.com/ErwingForeroXpert/ClusteringKg
 
 from setuptools import setup, find_packages
 
@@ -17,7 +17,7 @@ setup(
     long_description=readme,
     author='Erwing Forero',
     author_email='erwing.forero@xpertgroup.co',
-    url='https://github.com/ErwingForeroXpert/Presupuesto',
+    url='https://github.com/ErwingForeroXpert/ClusteringKg',
     license=license,
     packages=find_packages(exclude=('test','docs'))
 )

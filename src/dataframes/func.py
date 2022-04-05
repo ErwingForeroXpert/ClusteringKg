@@ -1,3 +1,7 @@
+#  -*- coding: utf-8 -*-
+#    Created on 04/04/2022 13:28:12
+#    @author: ErwingForero 
+# 
 import re
 from typing import Any
 from numpy import number, isnan, __name__, array, int64, NaN

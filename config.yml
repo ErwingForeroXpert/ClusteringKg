@@ -1,0 +1,85 @@
+general:
+    
+sources:
+    base_socios:
+        sheet: Consolidado
+        skiprows: 1
+        encoding: latin-1
+        columns: 
+            - column: cod_cliente
+              pos: 1
+            - column: cod_loc
+              pos: 2
+            - column: cod_agente
+              pos: 3
+            - column: atencion
+              pos: 4
+    base_coordenadas:
+        sheet: Base
+        skiprows: 1
+        encoding: latin-1
+        columns: 
+            - column: cod_cliente
+              pos: 1
+            - column: latitud
+              pos: 2
+            - column: longitud
+              pos: 3
+            - column: cod_agente
+              pos: 4
+            - column: cod_ecom
+              pos: 5
+    base_universo_directa:
+        sheet: Maestra
+        skiprows: 1
+        encoding: latin-1
+        columns: 
+            - column: cod_cliente
+              pos: 2
+            - column: cod_loc
+              pos: 3
+            - column: longitud
+              pos: 3
+            - column: cod_agente
+              pos: 4
+            - column: cod_ecom
+              pos: 5
+final_base:
+    - cod_cliente
+    - nom_cliente
+    - mod_atencion
+    - Direccion
+    - Subcanal
+    - Cod Vendedor Directa 1
+    - Vendedor Directa 1
+    - Cod Vendedor Directa 2
+    - Vendedor Directa 2
+    - Cod Jefe
+    - Jefe de Ventas
+    - Socio
+    - X
+    - Y
+    - Ventas Ant Kg
+    - Ventas Act Kg
+    - Ventas Ant Marca1 Kg
+    - Ventas Act Marca1 Kg
+    - Ventas Ant Marca2 Kg
+    - Ventas Act Marca2 Kg
+    - Ventas Ant Marca3 Kg
+    - Ventas Act Marca3 Kg
+    - Ventas Ant Marca4 Kg
+    - Ventas Act Marca4 Kg
+    - Status Marca1
+    - Status Marca1
+    - Status Marca1
+    - Status Marca1
+    - Ventas Ant $
+    - Ventas Act $
+    - Ventas Ant Marca1 $
+    - Ventas Act Marca1 $
+    - Ventas Ant Marca2 $
+    - Ventas Act Marca2 $
+    - Ventas Ant Marca3 $
+    - Ventas Act Marca3 $
+    - Ventas Ant Marca4 $
+    - Ventas Act Marca4 $
