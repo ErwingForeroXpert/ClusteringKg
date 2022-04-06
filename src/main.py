@@ -9,6 +9,7 @@
 # 
 
 import os
+from posixpath import split
 import tkinter as tk
 import re
 import asyncio
@@ -20,8 +21,9 @@ from utils import constants as const
 from gui.application import Application
 from gui.func import decorator_exception_message
 from utils import constants as const, index as utils, feature_flags as ft
+from cluster import cluster
 
-config = utils.get_config(os.path.join(const.ROOT_DIR, "/config.yml")) 
+config = (decorator_exception_message(title=const.PROCESS_NAME))(utils.get_config(os.path.join(const.ROOT_DIR, "/config.yml"))) 
 
 @decorator_exception_message(title=const.PROCESS_NAME)
 async def principal_process(app: 'Application'):
@@ -30,12 +32,20 @@ async def principal_process(app: 'Application'):
     Args:
         app (Application): actual instance of application
     """
-    app.validate_results()
+    app.execution_seconds = 0 # seconds of process
+    app.update_label(label="lbl_status", label_text="status_project", text="Procesando...") # status
+    app.update_progress() #update progress of process
+    app.validate_results() #validate if all insertions are correct
     results = app.results
+    sources = config["sources"]
 
-    for result in results:
-        pass
-    
+    bases = []
+    for key, source in sources.items():
+        path = results[key].split("|") #list[base, ...] - key is a name of base
+        if len(path) == 1:
+            path = path[0]
+        bases.append(cluster.Cluster.preprocess_base(path, source))
+        
     
 if __name__ == "__main__":
     
@@ -47,7 +57,8 @@ if __name__ == "__main__":
     App = Application(
         title=const.PROCESS_NAME,
         divisions=[2,2],
-        size ="300x200"
+        size ="500x600",
+        sources = config["sources"]
     )
 
     App.insert_action("button", "btn_execute", principal_process, event_loop=async_loop)

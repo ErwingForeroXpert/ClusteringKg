@@ -233,9 +233,18 @@ def get_data_of_excel_sheet(file_path: str, sheet: str, header_idx: 'list'= None
     """
     try:
         data = None
-        with pyx.open_workbook(file_path) as wb:
-            with wb.get_sheet(sheet) as _sheet:
-                data = np.array(list(_sheet))[:,:,2]
+        if "xlsm" in file_path.lower():
+            wb = xw.Book(file_path)
+            ws = wb.sheets(sheet)
+            tbl = ws.api.ListObjects(1) # or .ListObjects('MyTable')
+            rng = ws.range(tbl.range.address) # get range from table address
+
+            data = rng.options(np.array, header=True).value
+
+        elif "xlsb" in file_path.lower() or "xlsx" in file_path.lower():
+            with pyx.open_workbook(file_path) as wb:
+                with wb.get_sheet(sheet) as _sheet:
+                    data = np.array(list(_sheet))[:,:,2]
 
         if header_idx is not None:
             data = data[:, header_idx[0]:header_idx[1]]

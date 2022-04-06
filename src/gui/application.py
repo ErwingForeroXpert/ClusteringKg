@@ -14,7 +14,7 @@ from utils.index import validate_or_create_folder
 
 class Application():
 
-    def __init__(self, title: str, hide: bool = False, size: str="600x600") -> None:
+    def __init__(self, title: str, hide: bool = False, size: str="600x600", sources: dict = None) -> None:
         """Initialize the GUI Aplicacion budget.
 
         Args:
@@ -31,32 +31,16 @@ class Application():
         self.inputs = {}
         self.labels = {}
         self.prog_bars = {}
+        self.sources = sources
+        source_text = {
+            f"type_selector_{name}": tk.StringVar() for name in sources.keys()
+        }
         self.labels_text = {
-            "type_selector_base": tk.StringVar(),
-            "type_selector_coord": tk.StringVar(),
-            "type_selector_un_dic": tk.StringVar(),
-            "type_selector_un_indi": tk.StringVar(),
-            "type_selector_cons_dic": tk.StringVar(),
-            "type_selector_cons_indi": tk.StringVar(),
             "status_project": tk.StringVar(),
-            "progress_time": tk.StringVar()
+            "progress_time": tk.StringVar(),
+            **source_text
         }
-        self.results = {
-            "result_base": tk.StringVar(),
-            "result_coord": tk.StringVar(),
-            "result_un_dic": tk.StringVar(),
-            "result_un_indi": tk.StringVar(),
-            "result_cons_dic": tk.StringVar(),
-            "result_cons_indi": tk.StringVar(),
-        }
-        # self.results = {
-        #     "base_socios": "",
-        #     "coordenadas": "",
-        #     "universo_directa": "",
-        #     "universo_indirecta": "",
-        #     "consulta_directa": [],
-        #     "consulta_indirecta": [],
-        # }
+        self.results = {}
 
         self.execution_seconds = 0
         self.extensions = [
@@ -87,42 +71,13 @@ class Application():
 
         rows_to_insert = [
             {
-                "name": "base",
-                "message": "Seleccionar Base de socios: ",
+                "name": key,
+                "message": prop["message"],
                 "btn_message": "Añadir",
-                "command": lambda: self.insert_result(name="base", type="file")
-            },
-            {
-                "name": "coord",
-                "message": "Seleccionar Base de coordenadas: ",
-                "btn_message": "Añadir",
-                "command": lambda: self.insert_result(name="coord", type="file")
-            },
-            {
-                "name": "un_dic",
-                "message": "Seleccionar Base de universos clientes directa: ",
-                "btn_message": "Añadir",
-                "command": lambda: self.insert_result(name="un_dic", type="file")
-            },
-            {
-                "name": "un_indi",
-                "message": "Seleccionar Base de universos clientes indirecta: ",
-                "btn_message": "Añadir",
-                "command": lambda: self.insert_result(name="un_indi", type="file")
-            },
-            {
-                "name": "cons_dic",
-                "message": "Seleccionar la carpeta con las consultas directa: ",
-                "btn_message": "Añadir",
-                "command": lambda: self.insert_result(name="cons_dic", type="folder")
-            },
-            {
-                "name": "cons_indi",
-                "message": "Seleccionar la carpeta con las consultas indirecta: ",
-                "btn_message": "Añadir",
-                "command": lambda: self.insert_result(name="cons_indi", type="folder")
-            }
+                "command": lambda: self.insert_result(name=prop['name'], type=prop['type'])
+            } for key, prop in self.sources
         ]
+        
         end_row = self.create_row_insert(rows_to_insert, init_row=0)
 
 
@@ -259,10 +214,22 @@ class Application():
         elif type == "folder":
             _path = self.search_for_folder_path(required=True)
 
-        self.results[f"result_{name}"].set(_path)
+        self.results[f"{name}"].set(_path)
         self.inputs[f"path_{name}"].insert(0, _path)
         
-    def validate_results(self) -> None:
+    def validate_results(self) -> bool:
+        """validate results insert in process
+
+        Raises:
+            FileNotFoundError: file not found in folder
+
+        Returns:
+            bool: all results validated
+        """
+        if len(self.results) == 0:
+            tk.messagebox.showerror(self.root.title(), "No ha ingresado ningun archivo o carpeta")
+            return False
+
         for key, result in self.results.items():
             files = []
             if path.isdir(result.get()):
@@ -280,26 +247,11 @@ class Application():
 
             elif path.isfile():
                 pass
+            else:
+                tk.messagebox.showerror(self.root.title(), f"Se requiere el el archivo o carpeta para {key}, por favor intentelo de nuevo")
+                return False
 
-    # def get_file(self) -> 'list[str]':
-    #     if self.labels_text["type_route"].get() == "file":
-    #         _path = self.search_for_file_path(types= self.extensions, required=True)
-    #         self.results[f"result_{name}"]
-    #     elif self.labels_text["type_route"].get() == "folder":
-    #         _path = self.search_for_folder_path(required=True)
-    #         patterns = " ".join([patt[1] for patt in self.extensions])
-    #         patterns = patterns.replace(" ", "|")
-
-    #         for _file in listdir(_path):
-    #             if len(re.findall(patterns, _file)) > 0:
-    #                 self.files.append(path.normpath(path.join(_path, _file)))
-
-    #     self.execution_seconds = 0
-    #     self.update_label(label="lbl_status", label_text="status_project", text="Procesando...")
-    #     self.buttons["btn_insert_file"]["state"]=tk.DISABLED
-    #     self.update_progress()
-
-    #     return self.files
+            return True
     
     def search_for_file_path (self, required: bool = False, types: 'tuple|str' = "*")-> 'str|None':
         """Search for a file path.

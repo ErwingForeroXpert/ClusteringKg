@@ -7,6 +7,9 @@ name = "pypi"
 tk = "*"
 numpy = "*"
 pandas = "*"
+pyxlsb = "*"
+xlwings = "*"
+pymsgbox = "*"
 
 [dev-packages]
 

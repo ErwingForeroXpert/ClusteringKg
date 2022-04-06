@@ -1,7 +1,6 @@
-general:
-    
 sources:
     base_socios:
+        type: file
         sheet: Consolidado
         skiprows: 1
         encoding: latin-1
@@ -14,7 +13,9 @@ sources:
               pos: 3
             - column: atencion
               pos: 4
+		message: "Seleccionar el archivo de base de socios"
     base_coordenadas:
+        type: file
         sheet: Base
         skiprows: 1
         encoding: latin-1
@@ -30,6 +31,7 @@ sources:
             - column: cod_ecom
               pos: 5
     base_universo_directa:
+        type: file
         sheet: Maestra
         skiprows: 1
         encoding: latin-1
@@ -44,13 +46,65 @@ sources:
               pos: 4
             - column: cod_ecom
               pos: 5
+
+	base_universo_indirecta:
+        type: file
+        sheet: Maestra
+        skiprows: 1
+        encoding: latin-1
+        columns: 
+            - column: cod_cliente
+              pos: 2
+            - column: cod_loc
+              pos: 3
+            - column: longitud
+              pos: 3
+            - column: cod_agente
+              pos: 4
+            - column: cod_ecom
+              pos: 5
+	base_consulta_directa:
+        type: folder
+        sheet: Maestra
+        skiprows: 1
+        encoding: latin-1
+        columns: 
+            - column: cod_cliente
+              pos: 2
+            - column: cod_loc
+              pos: 3
+            - column: longitud
+              pos: 3
+            - column: cod_agente
+              pos: 4
+            - column: cod_ecom
+              pos: 5
+		gui:
+			message: "Seleccionar el archivo de consulta directa"
+	base_consulta_indirecta:
+        type: folder
+        sheet: Maestra
+        skiprows: 1
+        encoding: latin-1
+        columns: 
+            - column: cod_cliente
+              pos: 2
+            - column: cod_loc
+              pos: 3
+            - column: longitud
+              pos: 3
+            - column: cod_agente
+              pos: 4
+            - column: cod_ecom
+              pos: 5
+		
 final_base:
     - cod_cliente
     - nom_cliente
     - mod_atencion
-    - Direccion
-    - Subcanal
-    - Cod Vendedor Directa 1
+    - direccion
+    - subcanal
+    - cod_vendedor_dir_1
     - Vendedor Directa 1
     - Cod Vendedor Directa 2
     - Vendedor Directa 2
