@@ -484,7 +484,7 @@ class DataFrameOptimized():
         Args:
             path [str]: path of file
             sheet [str]: sheet of data
-            header_idx [list]: list of each starting and ending column, max_len = 2, example: [0,5]
+            header_idx [list]: list of each starting and ending column, example: [0,5]
             skiprows [list]: list of each starting and ending row, max_len = 2, example: [0,1000]
             converters [list]: list of columns converters, same size that columns.
 

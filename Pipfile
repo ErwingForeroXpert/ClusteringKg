@@ -12,6 +12,9 @@ xlwings = "*"
 pymsgbox = "*"
 
 [dev-packages]
+autopep8 = "*"
+black = "*"
+yapf = "*"
 
 [requires]
 python_version = "3.9"

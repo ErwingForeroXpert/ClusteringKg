@@ -38,15 +38,16 @@ sources:
         columns: 
             - column: cod_cliente
               pos: 2
-            - column: cod_loc
-              pos: 3
-            - column: longitud
-              pos: 3
-            - column: cod_agente
-              pos: 4
-            - column: cod_ecom
-              pos: 5
-
+            - column: direccion
+              pos: 10
+            - column: cod_vendedor
+              pos: 24
+            - column: subcanal
+              pos: 49
+            - column: cod_jefe
+              pos: 57
+            - column: jefe
+              pos: 58
 	base_universo_indirecta:
         type: file
         sheet: Maestra
@@ -55,14 +56,15 @@ sources:
         columns: 
             - column: cod_cliente
               pos: 2
-            - column: cod_loc
-              pos: 3
-            - column: longitud
-              pos: 3
-            - column: cod_agente
-              pos: 4
-            - column: cod_ecom
-              pos: 5
+            - column: direccion
+              pos: pendiente
+            - column: subcanal
+              pos: 49
+            - column: cod_jefe
+              pos: 57
+            - column: jefe
+              pos: 58
+
 	base_consulta_directa:
         type: folder
         sheet: Maestra

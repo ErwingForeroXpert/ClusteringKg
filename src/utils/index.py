@@ -247,7 +247,7 @@ def get_data_of_excel_sheet(file_path: str, sheet: str, header_idx: 'list'= None
                     data = np.array(list(_sheet))[:,:,2]
 
         if header_idx is not None:
-            data = data[:, header_idx[0]:header_idx[1]]
+            data = data[:, header_idx]
 
         if row_converter is not None:
             data = np.apply_along_axis(convert_row, 1, data, row_converter)
