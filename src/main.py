@@ -21,7 +21,7 @@ from utils import constants as const
 from gui.application import Application
 from gui.func import decorator_exception_message
 from utils import constants as const, index as utils, feature_flags as ft
-from cluster import cluster
+from cluster.cluster import Cluster
 
 config = (decorator_exception_message(title=const.PROCESS_NAME))(utils.get_config(os.path.join(const.ROOT_DIR, "/config.yml"))) 
 
@@ -39,13 +39,17 @@ async def principal_process(app: 'Application'):
     results = app.results
     sources = config["sources"]
 
-    bases = []
+    bases = {}
     for key, source in sources.items():
         path = results[key].split("|") #list[base, ...] - key is a name of base
         if len(path) == 1:
             path = path[0]
-        bases.append(cluster.Cluster.preprocess_base(path, source))
-        
+        bases[key] = Cluster.preprocess_base(path, source)
+
+    final_base = Cluster()
+    final_base.merge_all(bases)
+
+    
     
 if __name__ == "__main__":
     

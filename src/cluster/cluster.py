@@ -52,7 +52,7 @@ class Cluster(dto.DataFrameOptimized):
         coords_directa = table_general.merge(
             right=table_coords[[columns_coords[0], *columns_coords[1:3]]], #cod_cliente, ...coords
             right_on=columns_coords[0], #cod_cliente
-            left_on= columns_general[0], #agente y cod_cliente (ecom)
+            left_on= columns_general[0], #cod_cliente
             how="left"
         )
         
@@ -62,10 +62,95 @@ class Cluster(dto.DataFrameOptimized):
             on=columns_general,
             how="left")
     
-    def process_base_universe(self, bases_universe: 'list(dto.DataFrameOptimized)', types: 'list(str)') -> None:
-        
+    def process_bases_universe(self, bases_universe: 'list(dto.DataFrameOptimized)', types: 'list(str)') -> None:
+
+        bases = []
+        cols_found = []
+        columns_general = self.base_final.table.columns.to_list()
+        table_general = self.base_final.table
+
         for base, type in zip(bases_universe, types):
-            self.base_final
+            table_universe = base.table
+            columns_universe = base.table.columns
+
+            cols_found = cols_found.append(columns_universe)
+
+            if type == TYPE_CLUSTERS.DIRECTA.value:
+                res_base = table_general.merge(
+                    right=table_universe, #cod_cliente, ...coords
+                    right_on=columns_universe[1], #cod_cliente
+                    left_on= columns_general[0], #cod_cliente
+                    how="left"
+                )
+
+                found = ~pd.isna(res_base[columns_universe]).any(axis=1)
+
+                bases.append(
+                    res_base[found]
+                )
+            elif type == TYPE_CLUSTERS.INDIRECTA.value:
+
+                res_base = table_general.merge(
+                    right=table_universe, #cod_cliente, ...coords
+                    right_on=columns_universe[2], #cod_cliente
+                    left_on= columns_general[0], #cod_cliente
+                    how="left"
+                )
+
+                bases.append(
+                    res_base
+                )
+
+        self.base_final.table = self.combine_columns(
+            data=bases, 
+            suffixes=("_x", "_y"),
+            on=utils.get_same_list(cols_found), # get same columns in two bases
+            how="left")
+
+    def process_bases_query(self, bases_query: 'list(dto.DataFrameOptimized)', types: 'list(str)') -> None:
+        bases = []
+        cols_found = []
+        columns_general = self.base_final.table.columns.to_list()
+        table_general = self.base_final.table
+
+        for base, type in zip(bases_query, types):
+            table_universe = base.table
+            columns_universe = base.table.columns
+
+            cols_found = cols_found.append(columns_universe)
+
+            if type == TYPE_CLUSTERS.DIRECTA.value:
+                res_base = table_general.merge(
+                    right=table_universe, #cod_cliente, ...coords
+                    right_on=columns_universe[1], #cod_cliente
+                    left_on= columns_general[0], #cod_cliente
+                    how="left"
+                )
+
+                found = ~pd.isna(res_base[columns_universe]).any(axis=1)
+
+                bases.append(
+                    res_base[found]
+                )
+            elif type == TYPE_CLUSTERS.INDIRECTA.value:
+
+                res_base = table_general.merge(
+                    right=table_universe, #cod_cliente, ...coords
+                    right_on=columns_universe[2], #cod_cliente
+                    left_on= columns_general[0], #cod_cliente
+                    how="left"
+                )
+
+                bases.append(
+                    res_base
+                )
+
+        self.base_final.table = self.combine_columns(
+            data=bases, 
+            suffixes=("_x", "_y"),
+            on=utils.get_same_list(cols_found), # get same columns in two bases
+            how="left")
+
     @staticmethod
     def preprocess_base(path: 'str|list', properties: dict) -> 'dto.DataFrameOptimized':
         if properties["type"] == "file":
@@ -78,10 +163,20 @@ class Cluster(dto.DataFrameOptimized):
             header_names = None
 
             if columns is not None:
-                header_names = columns.keys()
                 # substract because the columns start with 1
-                header_idx = [col["pos"] - 1 for col in columns]
+                header_idx = []
+                header_names = []
+                for key, col in columns.items():
+                    if str(col["pos"]).isnumeric():
 
+                        header_idx.append(int(col["pos"])-1)
+                        header_names.append(key)
+                    elif not str(col["pos"]).isnumeric():
+
+                        temp_headers = Cluster.__extract_column(str(col["pos"]))
+                        header_idx.extend(temp_headers)
+                        header_names.extend([f"{key}_{head}" for head in temp_headers])
+                        
             if skiprows is not None:
                 skiprows = skiprows[:2] if isinstance(skiprows, (list, tuple)) else [
                     int(skiprows), -1]
@@ -108,5 +203,8 @@ class Cluster(dto.DataFrameOptimized):
                         file, properties).table), ignore_index=True)
             return bases
 
+    def __extract_column(column: str):
+        arr = column.split("-")[:2]
+        return list(range(int(arr[0])-1, int(arr[0])))
     def merge_all():
         pass
