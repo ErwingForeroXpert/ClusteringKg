@@ -10,7 +10,6 @@ from sre_compile import isstring
 from time import time
 from utils import feature_flags
 from utils import constants as const
-from afo import afo_types
 from utils import index as utils
 from typing import Any
 import pandas as pd
@@ -116,30 +115,30 @@ class DataFrameOptimized():
     def get_alerts(self):
         return self.__alerts
 
-    def validate_alert(self, mask: bool, description: str, type: str, exception: bool=False, exception_description: str = "", aux_table: 'pd.DataFrame'=None):
-        """Validate an alert .
+    # def validate_alert(self, mask: bool, description: str, type: str, exception: bool=False, exception_description: str = "", aux_table: 'pd.DataFrame'=None):
+    #     """Validate an alert .
 
-        Args:
-            mask (bool): [description]
-            description (str): [description]
-            exception (bool, optional): [description]. Defaults to False.
-            exception_description (str, optional): [description]. Defaults to "".
-        """
-        if mask.sum() > 0:
-            if aux_table is None:
-                self.insert_alert(
-                    alert=self.table[mask],
-                    description=description
-                )
-            if exception:
-                table = self.get_alerts() if aux_table is None else aux_table[mask]
-                table.to_csv(
-                    os.path.normpath(os.path.join(const.ALERTS_DIR, f"{afo_types.AFO_TYPES[type].value}_alerts.csv")), 
-                    index=False, 
-                    encoding="latin-1", 
-                    sep=";")
-                if feature_flags == "PROD":
-                    raise Exception(exception_description)
+    #     Args:
+    #         mask (bool): [description]
+    #         description (str): [description]
+    #         exception (bool, optional): [description]. Defaults to False.
+    #         exception_description (str, optional): [description]. Defaults to "".
+    #     """
+    #     if mask.sum() > 0:
+    #         if aux_table is None:
+    #             self.insert_alert(
+    #                 alert=self.table[mask],
+    #                 description=description
+    #             )
+    #         if exception:
+    #             table = self.get_alerts() if aux_table is None else aux_table[mask]
+    #             table.to_csv(
+    #                 os.path.normpath(os.path.join(const.ALERTS_DIR, f"{afo_types.AFO_TYPES[type].value}_alerts.csv")), 
+    #                 index=False, 
+    #                 encoding="latin-1", 
+    #                 sep=";")
+    #             if feature_flags == "PROD":
+    #                 raise Exception(exception_description)
 
     def get_rows(self, criteria: 'np.array') -> 'DataFrameOptimized':
         """Get rows from the dataframe .

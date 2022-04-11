@@ -3,5 +3,5 @@
 #    @author: ErwingForero 
 # 
 
-ENVIROMENT = "PROD" #actual enviroment of project DEV or PROD
+ENVIROMENT = "DEV" #actual enviroment of project DEV or PROD
 SKIP_AFO_PROCESS = -1 #-1 - all, 0 - load, 1 - formula, 2 - assigment, 3 - consolidation

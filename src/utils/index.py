@@ -35,7 +35,7 @@ def get_config(path: str) -> dict:
         raise Exception("config.yml file is required")
     
     with open(_path, "r") as ymlfile:
-        cfg = yaml.load(ymlfile)
+        cfg = yaml.full_load(ymlfile)
     
     return cfg
 

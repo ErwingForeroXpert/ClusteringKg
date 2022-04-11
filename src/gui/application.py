@@ -2,12 +2,15 @@
 #    Created on 04/04/2022 13:28:12
 #    @author: ErwingForero 
 # 
+import os
 import time
 import tkinter as tk
+from tkinter import ttk
 import numpy as np
 import threading
 import re
-from os import getcwd,path, listdir
+from os import getcwd, path, listdir
+from utils import feature_flags as ft
 from utils.constants import ROOT_DIR, ICON_IMAGE
 from utils.index import validate_or_create_folder
 
@@ -74,8 +77,8 @@ class Application():
                 "name": key,
                 "message": prop["message"],
                 "btn_message": "Añadir",
-                "command": lambda: self.insert_result(name=prop['name'], type=prop['type'])
-            } for key, prop in self.sources
+                "command": (lambda key, prop: lambda: self.insert_result(name=key, type=prop['type']))(key, prop)
+            } for key, prop in self.sources.items()
         ]
         
         end_row = self.create_row_insert(rows_to_insert, init_row=0)
@@ -83,6 +86,10 @@ class Application():
 
         self.buttons[f"btn_execute"] = tk.Button(self.root, text="Iniciar")
         self.buttons[f"btn_execute"].grid(row=end_row+1, column=0, columnspan=4, sticky=tk.NS, padx=5, pady=5)
+
+        if ft.ENVIROMENT == "DEV": #- delete it before
+            self.buttons[f"btn_get_folders"] = tk.Button(self.root, text="usar carpeta", command=lambda: self.get_predeterminated_files(r"C:\Work\Nutresa\ClusteringKg\files\Bases"))
+            self.buttons[f"btn_get_folders"].grid(row=end_row+1, column=1, columnspan=4, sticky=tk.NS, padx=5, pady=5)
 
         self.labels_text["status_project"].set("Sin procesar")
         self.labels["lbl_status"] = tk.Label(self.root, textvariable=self.labels_text["status_project"])
@@ -92,7 +99,7 @@ class Application():
         self.labels["lbl_prog_time"] = tk.Label(self.root, textvariable=self.labels_text["progress_time"],)
         self.labels["lbl_prog_time"].grid(row=end_row+3, column=0, sticky=tk.NS, padx=5, pady=5)
 
-        self.prog_bars["pb_process"] = tk.ttk.Progressbar(
+        self.prog_bars["pb_process"] = ttk.Progressbar(
             self.root,
             orient = tk.HORIZONTAL,
             length = 100,
@@ -158,7 +165,7 @@ class Application():
         try:
             threading.Thread(target=lambda: async_loop.run_until_complete(action())).start()
         finally:
-            self.buttons["btn_insert_file"]['state'] = tk.NORMAL
+            self.buttons["btn_execute"]['state'] = tk.NORMAL
             print("event end")
 
     def insert_action(self, _type: str, name: str, cb: 'Function', event_loop=None, **kargs) -> None:
@@ -184,10 +191,10 @@ class Application():
 
         if _type == "button":
             if name not in self.buttons.keys(): raise ValueError(f"{name} not found in buttons")
-            self.buttons[name]["command"] = sub if event_loop is None else lambda:self.do_task(event_loop, sub)
+            self.buttons[name]["command"] = sub if event_loop is None else lambda: self.do_task(event_loop, sub)
         elif _type == "input":
             if name not in self.inputs.keys(): raise ValueError(f"{name} not found in inputs")
-            self.inputs[name]["command"] = sub if event_loop is None else lambda:self.do_task(event_loop, sub)
+            self.inputs[name]["command"] = sub if event_loop is None else lambda: self.do_task(event_loop, sub)
 
     def make_message(self, message: str, _type: str = "info", others_cb: 'list[function]' = []) -> 'Function':
         """Create a messagebox with a messagebox .
@@ -214,7 +221,7 @@ class Application():
         elif type == "folder":
             _path = self.search_for_folder_path(required=True)
 
-        self.results[f"{name}"].set(_path)
+        self.results[f"{name}"] = _path
         self.inputs[f"path_{name}"].insert(0, _path)
         
     def validate_results(self) -> bool:
@@ -232,20 +239,20 @@ class Application():
 
         for key, result in self.results.items():
             files = []
-            if path.isdir(result.get()):
+            if path.isdir(result):
                 patterns = " ".join([patt[1] for patt in self.extensions])
                 patterns = patterns.replace(" ", "|")
 
-                for _file in listdir(result.get()):
+                for _file in listdir(result):
                     if len(re.findall(patterns, _file)) > 0:
-                        files.append(path.normpath(path.join(result.get(), _file)))
+                        files.append(path.normpath(path.join(result, _file)))
                 
                 if len(files) == 0:
-                    raise FileNotFoundError(f"No se encontraron los archivos necesarios en: {result.get()}")
+                    raise FileNotFoundError(f"No se encontraron los archivos necesarios en: {result}")
 
-                self.results[key].set("|".join(files))
+                self.results[key] = "|".join(files)
 
-            elif path.isfile():
+            elif path.isfile(result):
                 pass
             else:
                 tk.messagebox.showerror(self.root.title(), f"Se requiere el el archivo o carpeta para {key}, por favor intentelo de nuevo")
@@ -297,6 +304,39 @@ class Application():
                 folder_found = True
         
         return tempdir
+
+    # function only for develop - delete it before 
+    def get_predeterminated_files(self, _path: str):
+        from utils import constants as const
+
+        found = {
+            "base_socios": "",
+            "base_coordenadas": "",
+            "base_universo_directa": "",
+            "base_universo_indirecta": "",
+            "base_consulta_directa": "",
+            "base_consulta_indirecta": ""
+        }
+        for (dirpath, dirnames, filenames) in os.walk(_path):
+            for file in filenames:
+                if re.search("socio", file, re.IGNORECASE):
+                    found["base_socios"] = path.join(_path, file)
+                elif re.search("coord", file, re.IGNORECASE):
+                    found["base_coordenadas"] = path.join(_path, file)
+                elif re.search(r"universo\s+direc", file, re.IGNORECASE):
+                    found["base_universo_directa"] = path.join(_path, file)
+                elif re.search(r"universo\s+indirec", file, re.IGNORECASE):
+                    found["base_universo_indirecta"] = path.join(_path, file)
+
+            for dir in dirnames:
+                if re.search("indirecta", dir, re.IGNORECASE):
+                    found["base_consulta_indirecta"] = path.join(_path, dir)
+                elif re.search("directa", dir, re.IGNORECASE):
+                    found["base_consulta_directa"] = path.join(_path, dir)
+
+        for key, item in found.items():
+            self.results[f"{key}"] = item
+            self.inputs[f"path_{key}"].insert(0, item)
 
     def run(self) -> None:
         self.root.mainloop()

@@ -13,7 +13,7 @@ sources:
               pos: 3
             - column: atencion
               pos: 4
-		message: "Seleccionar el archivo de base de socios"
+        message: 'Seleccionar el archivo de base de socios' 
     base_coordenadas:
         type: file
         sheet: Base
@@ -30,7 +30,7 @@ sources:
               pos: 4
             - column: cod_ecom
               pos: 5
-		    message: "Seleccionar el archivo de coordenadas"
+        message: 'Seleccionar el archivo de coordenadas'
     base_universo_directa:
         type: file
         sheet: Maestra
@@ -49,40 +49,40 @@ sources:
               pos: 57
             - column: jefe
               pos: 58
-		    message: "Seleccionar el archivo de universo directa"
-	base_universo_indirecta:
-        type: file
-        sheet: BD
-        skiprows: 1
-        encoding: latin-1
-        columns: 
-            - column: direccion
-              pos: 14
-            - column: subcanal
-              pos: 23
-            - column: cod_jefe
-              pos: 35
-            - column: jefe
-              pos: 36
-		    message: "Seleccionar el archivo de universo indirecta"
-	base_consulta_directa:
-        type: folder
-        sheet: Base
-        skiprows: 1
-        encoding: latin-1
-        columns: 
-            - column: cod_cliente
-              pos: 1
-            - column: mes
-              pos: 2
-            - column: marca
-              pos: 3
-            - column: venta_pesos
-              pos: 4
-            - column: venta_kilos
-              pos: 5
-		    message: "Seleccionar la carpeta de consulta directa"
-	base_consulta_indirecta:
+        message: 'Seleccionar el archivo de universo directa'
+    base_universo_indirecta:
+          type: file
+          sheet: BD
+          skiprows: 1
+          encoding: latin-1
+          columns: 
+              - column: direccion
+                pos: 14
+              - column: subcanal
+                pos: 23
+              - column: cod_jefe
+                pos: 35
+              - column: jefe
+                pos: 36
+          message: 'Seleccionar el archivo de universo indirecta'
+    base_consulta_directa:
+          type: folder
+          sheet: Base
+          skiprows: 1
+          encoding: latin-1
+          columns: 
+              - column: cod_cliente
+                pos: 1
+              - column: mes
+                pos: 2
+              - column: marca
+                pos: 3
+              - column: venta_pesos
+                pos: 4
+              - column: venta_kilos
+                pos: 5
+          message: 'Seleccionar la carpeta de consulta directa'
+    base_consulta_indirecta:
         type: folder
         sheet: Base
         skiprows: 3
@@ -95,11 +95,17 @@ sources:
             - column: marca
               pos: 3
             - column: ventas_pesos
-              pos: "4-15"
+              pos: '4-15'
             - column: ventas_kilos
-              pos: "16-28"
-		    message: "Seleccionar la carpeta de consulta indirecta"
-
+              pos: '16-28'
+        message: 'Seleccionar la carpeta de consulta indirecta'
+order_base:
+  - base_socios
+  - base_coordenadas
+  - base_universo_directa
+  - base_universo_indirecta
+  - base_consulta_directa
+  - base_consulta_indirecta
 final_base:
     - cod_cliente
     - nom_cliente
@@ -107,35 +113,35 @@ final_base:
     - direccion
     - subcanal
     - cod_vendedor_dir_1
-    - Vendedor Directa 1
-    - Cod Vendedor Directa 2
-    - Vendedor Directa 2
-    - Cod Jefe
-    - Jefe de Ventas
-    - Socio
-    - X
-    - Y
-    - Ventas Ant Kg
-    - Ventas Act Kg
-    - Ventas Ant Marca1 Kg
-    - Ventas Act Marca1 Kg
-    - Ventas Ant Marca2 Kg
-    - Ventas Act Marca2 Kg
-    - Ventas Ant Marca3 Kg
-    - Ventas Act Marca3 Kg
-    - Ventas Ant Marca4 Kg
-    - Ventas Act Marca4 Kg
-    - Status Marca1
-    - Status Marca1
-    - Status Marca1
-    - Status Marca1
-    - Ventas Ant $
-    - Ventas Act $
-    - Ventas Ant Marca1 $
-    - Ventas Act Marca1 $
-    - Ventas Ant Marca2 $
-    - Ventas Act Marca2 $
-    - Ventas Ant Marca3 $
-    - Ventas Act Marca3 $
-    - Ventas Ant Marca4 $
-    - Ventas Act Marca4 $
+    - vendedor_dir_1
+    - cod_vendedor_dir_2
+    - vendedor_dir_2
+    - cod_jefe
+    - jefe
+    - socio
+    - latitud
+    - longitud
+    - ventas_ant_kg
+    - ventas_act_kg
+    - ventas_ant_marca1_kg
+    - ventas_act_marca1_kg
+    - ventas_ant_marca2_kg
+    - ventas_act_marca2_kg
+    - ventas_ant_marca3_kg
+    - ventas_act_marca3_kg
+    - ventas_ant_marca4_kg
+    - ventas_act_marca4_kg
+    - status_marca1
+    - status_marca1
+    - status_marca1
+    - status_marca1
+    - ventas_ant_pes
+    - ventas_act_pes
+    - ventas_ant_marca1_pes
+    - ventas_act_marca1_pes
+    - ventas_ant_marca2_pes
+    - ventas_act_marca2_pes
+    - ventas_ant_marca3_pes
+    - ventas_act_marca3_pes
+    - ventas_ant_marca4_pes
+    - ventas_act_marca4_pes

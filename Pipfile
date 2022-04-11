@@ -10,6 +10,7 @@ pandas = "*"
 pyxlsb = "*"
 xlwings = "*"
 pymsgbox = "*"
+pyyaml = "*"
 
 [dev-packages]
 autopep8 = "*"

@@ -15,4 +15,5 @@ _dev*
 *.ftr
 *.exe
 *.zip
+*.log
 ~$*

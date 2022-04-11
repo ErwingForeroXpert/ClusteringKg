@@ -13,9 +13,17 @@ class Cluster(dto.DataFrameOptimized):
 
     def __init__(self, table=None, **kargs) -> None:
         super().__init__(table, **kargs)
+        
+    def __extract_column(column: str):
+        arr = column.split("-")[:2]
+        return list(range(int(arr[0])-1, int(arr[0])))
 
-        self.base_final = None
+    def __order_by(bases: dict[str, dto.DataFrameOptimized], order: 'list[str]'):
 
+        order_base = {key: bases[key] for key in order.keys()}
+
+        return order_base
+        
     def process_base_partners(self, base_partners: dto.DataFrameOptimized) -> None:
 
         columns = base_partners.table.columns.to_list()
@@ -32,15 +40,15 @@ class Cluster(dto.DataFrameOptimized):
 
         base.loc[((mask_client|mask_loc)|(mask_client&mask_agent)), "socios"] = True 
 
-        self.base_final = base[[*columns[:2], "socios"]]
+        self.table = base[[*columns[:2], "socios"]]
 
     def process_base_coords(self, base_coords: dto.DataFrameOptimized) -> None:
 
         columns_coords = base_coords.table.columns.to_list()
-        columns_general = self.base_final.table.to_list()
+        columns_general = self.table.to_list()
 
         table_coords = base_coords.table
-        table_general = self.base_final.table
+        table_general = self.table
 
         coords_indirecta = table_general.merge(
             right=table_coords[columns_coords[1:]],
@@ -56,7 +64,7 @@ class Cluster(dto.DataFrameOptimized):
             how="left"
         )
         
-        self.base_final.table = self.combine_columns(
+        self.table = self.combine_columns(
             data=(coords_directa, coords_indirecta), 
             suffixes=("_x", "_y"),
             on=columns_general,
@@ -66,8 +74,8 @@ class Cluster(dto.DataFrameOptimized):
 
         bases = []
         cols_found = []
-        columns_general = self.base_final.table.columns.to_list()
-        table_general = self.base_final.table
+        columns_general = self.table.columns.to_list()
+        table_general = self.table
 
         for base, type in zip(bases_universe, types):
             table_universe = base.table
@@ -101,7 +109,7 @@ class Cluster(dto.DataFrameOptimized):
                     res_base
                 )
 
-        self.base_final.table = self.combine_columns(
+        self.table = self.combine_columns(
             data=bases, 
             suffixes=("_x", "_y"),
             on=utils.get_same_list(cols_found), # get same columns in two bases
@@ -110,24 +118,24 @@ class Cluster(dto.DataFrameOptimized):
     def process_bases_query(self, bases_query: 'list(dto.DataFrameOptimized)', types: 'list(str)') -> None:
         bases = []
         cols_found = []
-        columns_general = self.base_final.table.columns.to_list()
-        table_general = self.base_final.table
+        columns_general = self.table.columns.to_list()
+        table_general = self.table
 
         for base, type in zip(bases_query, types):
-            table_universe = base.table
-            columns_universe = base.table.columns
+            table_query = base.table
+            columns_query = base.table.columns
 
-            cols_found = cols_found.append(columns_universe)
+            cols_found = cols_found.append(columns_query)
 
             if type == TYPE_CLUSTERS.DIRECTA.value:
                 res_base = table_general.merge(
-                    right=table_universe, #cod_cliente, ...coords
-                    right_on=columns_universe[1], #cod_cliente
+                    right=table_query, #cod_cliente, ...coords
+                    right_on=columns_query[1], #cod_cliente
                     left_on= columns_general[0], #cod_cliente
                     how="left"
                 )
 
-                found = ~pd.isna(res_base[columns_universe]).any(axis=1)
+                found = ~pd.isna(res_base[columns_query]).any(axis=1)
 
                 bases.append(
                     res_base[found]
@@ -135,8 +143,8 @@ class Cluster(dto.DataFrameOptimized):
             elif type == TYPE_CLUSTERS.INDIRECTA.value:
 
                 res_base = table_general.merge(
-                    right=table_universe, #cod_cliente, ...coords
-                    right_on=columns_universe[2], #cod_cliente
+                    right=table_query, #cod_cliente, ...coords
+                    right_on=columns_query[2], #cod_cliente
                     left_on= columns_general[0], #cod_cliente
                     how="left"
                 )
@@ -145,7 +153,7 @@ class Cluster(dto.DataFrameOptimized):
                     res_base
                 )
 
-        self.base_final.table = self.combine_columns(
+        self.table = self.combine_columns(
             data=bases, 
             suffixes=("_x", "_y"),
             on=utils.get_same_list(cols_found), # get same columns in two bases
@@ -203,8 +211,27 @@ class Cluster(dto.DataFrameOptimized):
                         file, properties).table), ignore_index=True)
             return bases
 
-    def __extract_column(column: str):
-        arr = column.split("-")[:2]
-        return list(range(int(arr[0])-1, int(arr[0])))
-    def merge_all():
-        pass
+    def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', order: 'list[str]'):
+        pair_bases = []
+        for key in order:
+            if "socios" in key.lower():
+                self.process_base_partners(bases[key])
+
+            elif "coordenadas" in key.lower():
+                self.process_base_coords(bases[key])
+                
+            elif "universo_directa" in key.lower():
+                pair_bases.append(bases[key])
+
+            elif "universo_indirecta" in key.lower():
+                pair_bases.append(bases[key])
+                self.process_bases_universe(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
+                pair_bases = []
+
+            elif "consulta_directa" in key.lower():
+                pair_bases.append(bases[key])
+
+            elif "consulta_indirecta" in key.lower():
+                pair_bases.append(bases[key])
+                self.process_bases_universe(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
+                pair_bases = []
