@@ -11,6 +11,7 @@ pyxlsb = "*"
 xlwings = "*"
 pymsgbox = "*"
 pyyaml = "*"
+openpyxl = "*"
 
 [dev-packages]
 autopep8 = "*"

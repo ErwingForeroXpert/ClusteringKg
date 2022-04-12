@@ -258,7 +258,7 @@ class Application():
                 tk.messagebox.showerror(self.root.title(), f"Se requiere el el archivo o carpeta para {key}, por favor intentelo de nuevo")
                 return False
 
-            return True
+        return True
     
     def search_for_file_path (self, required: bool = False, types: 'tuple|str' = "*")-> 'str|None':
         """Search for a file path.

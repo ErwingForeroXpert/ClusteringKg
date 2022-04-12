@@ -2,6 +2,9 @@
 #    Created on 04/04/2022 13:28:12
 #    @author: ErwingForero
 #
+import asyncio
+from copy import copy
+import re
 import numpy as np
 import pandas as pd
 from dataframes import dataframe_optimized as dto
@@ -16,7 +19,7 @@ class Cluster(dto.DataFrameOptimized):
         
     def __extract_column(column: str):
         arr = column.split("-")[:2]
-        return list(range(int(arr[0])-1, int(arr[0])))
+        return list(range(int(arr[0])-1, int(arr[1])))
 
     def __order_by(bases: dict[str, dto.DataFrameOptimized], order: 'list[str]'):
 
@@ -28,7 +31,7 @@ class Cluster(dto.DataFrameOptimized):
 
         columns = base_partners.table.columns.to_list()
         base = base_partners.table
-
+        
         mask_client = base[columns[0]].str.contains(
             pat=r'\d+', regex=True)
         mask_loc = base[columns[1]].str.contains(
@@ -160,7 +163,7 @@ class Cluster(dto.DataFrameOptimized):
             how="left")
 
     @staticmethod
-    def preprocess_base(path: 'str|list', properties: dict) -> 'dto.DataFrameOptimized':
+    def preprocess_base(path: 'str|list', properties: dict) -> 'dto.DataFrameOptimized|list[dto.DataFrameOptimized]':
         if properties["type"] == "file":
             converters = properties["converters"] if "converters" in properties.keys(
             ) else None
@@ -174,48 +177,61 @@ class Cluster(dto.DataFrameOptimized):
                 # substract because the columns start with 1
                 header_idx = []
                 header_names = []
-                for key, col in columns.items():
+                for col in columns:
                     if str(col["pos"]).isnumeric():
 
                         header_idx.append(int(col["pos"])-1)
-                        header_names.append(key)
+                        header_names.append(col["column"])
                     elif not str(col["pos"]).isnumeric():
 
                         temp_headers = Cluster.__extract_column(str(col["pos"]))
                         header_idx.extend(temp_headers)
-                        header_names.extend([f"{key}_{head}" for head in temp_headers])
+                        header_names.extend([f"{col['column']}_{head}" for head in temp_headers])
                         
             if skiprows is not None:
                 skiprows = skiprows[:2] if isinstance(skiprows, (list, tuple)) else [
                     int(skiprows), -1]
 
             base = dto.DataFrameOptimized.get_table_excel(
-                path, properties["sheet"], 
-                header_idx=header_idx, 
-                skiprows=skiprows, 
-                converters=converters, 
-                columns=header_names)
+                    path, properties["sheet"], 
+                    header_idx=header_idx, 
+                    skiprows=skiprows,  
+                    converters=converters, 
+                    columns=header_names)
 
             return base
 
         elif properties["type"] == "folder":
-            bases = None
+            bases = [None for _ in range(len(properties["columns"]))]
+
             if not utils.is_iterable(path):
                 raise ValueError("for type folder path must be a iterable")
 
+            properties["type"] = "file"
+            actual_year = -1
+            year = None
+
             for file in path:
-                if bases is None:
-                    bases = Cluster.preprocess_base(file, properties)
+
+                if year != (v:=re.search(r"(?<=_)(\d{4})(?=\.*)", file).group(0)): 
+                    year = v
+                    actual_year = min(len(properties["columns"])-1, actual_year+1)
+                    
+                temp_prop = copy(properties)
+                temp_prop["columns"] = properties["columns"][actual_year]
+                 
+                if bases[actual_year] is None:
+                    bases[actual_year] = Cluster.preprocess_base(file, temp_prop)
                 else:
-                    bases.table = pd.concat((bases.table, Cluster.preprocess_base(
-                        file, properties).table), ignore_index=True)
+                    bases[actual_year].table = pd.concat((bases[actual_year].table, Cluster.preprocess_base(
+                        file, temp_prop).table), ignore_index=True)
             return bases
 
-    def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', order: 'list[str]'):
+    async def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', order: 'list[str]'):
         pair_bases = []
         for key in order:
             if "socios" in key.lower():
-                self.process_base_partners(bases[key])
+                self.process_base_partners(bases[key])  
 
             elif "coordenadas" in key.lower():
                 self.process_base_coords(bases[key])
@@ -231,7 +247,7 @@ class Cluster(dto.DataFrameOptimized):
             elif "consulta_directa" in key.lower():
                 pair_bases.append(bases[key])
 
-            elif "consulta_indirecta" in key.lower():
+            elif "consulta_indirecta" in key.lower(): 
                 pair_bases.append(bases[key])
                 self.process_bases_universe(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
                 pair_bases = []
