@@ -68,18 +68,20 @@ def get_predeterminated_files(_path: str):
                     found["base_consulta_directa"] = "|".join(files)
         return found
 
-#load configfile
+#load config, paths and structure of files
 config = utils.get_config(os.path.join(const.ROOT_DIR, "config.yml"))
 files_found = get_predeterminated_files(os.path.join(const.ROOT_DIR, "files/Bases"))
-
 sources = config["sources"]
 
+#actual event loop
 loop = asyncio.get_event_loop()
 
 # bases = loop.run_until_complete(get_bases(sources, files_found))  
 
+#only for test with csv value - delete
 bases = {f"{file.split('.')[0]}": DataFrameOptimized(pd.read_csv(os.path.join(const.ROOT_DIR, f"files/temp/{file}"))) for file in os.listdir(os.path.join(const.ROOT_DIR, f"files/temp"))}
-# bases = {f"{keys[idx]}": result for idx, result in enumerate(results)}
+bases["base_consulta_directa"] = [bases.pop('base_consulta_directa_0')]
+bases["base_consulta_indirecta"] = [bases.pop('base_consulta_indirecta_0'), bases.pop('base_consulta_indirecta_1')]
 
 final_base = Cluster()
 loop.run_until_complete(final_base.merge_all(bases, config["order_base"]))

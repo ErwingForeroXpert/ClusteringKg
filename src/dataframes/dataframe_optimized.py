@@ -461,10 +461,11 @@ class DataFrameOptimized():
         columns_with_suffixes = list(filter(lambda column: reduce(lambda a,b: (a in column) | (b in column), suffixes), _temp_table.columns.tolist()))
 
         count = 0
+        margin = len(columns_with_suffixes) // 2
+        
+        while len(columns_with_suffixes[count::margin]) == 2:
 
-        while len(columns_with_suffixes[count::2]) == 2:
-
-            pair = columns_with_suffixes[count::2]
+            pair = columns_with_suffixes[count::margin]
             mask = pd.isna(_temp_table[pair[0]])
             column_without_suffixes = pair[0]
 

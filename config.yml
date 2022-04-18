@@ -49,6 +49,8 @@ sources:
               pos: 10
             - column: cod_vendedor
               pos: 24
+            - column: vendedor
+              pos: 25
             - column: subcanal
               pos: 49
             - column: cod_jefe
@@ -122,7 +124,6 @@ sources:
                 pos: '4-7'
               - column: ventas_kilos
                 pos: '8-11'
-        message: 'Seleccionar la carpeta de consulta indirecta'
 order_base:
   - base_socios
   - base_coordenadas
