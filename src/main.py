@@ -72,6 +72,12 @@ async def principal_process(app: 'Application'):
 
         #     results = await asyncio.gather(*futures)
         
+        for key, base in bases.items(): 
+            if isinstance(base, (list, tuple)):
+                for idx in range(len(base)):
+                    base[idx].table.to_csv(f"{os.path.join(const.ROOT_DIR, 'files/temp')}/{key}_{idx}.csv", encoding="utf-8", index = None)
+            else:
+                base.table.to_csv(f"{os.path.join(const.ROOT_DIR, 'files/temp')}/{key}.csv", encoding="utf-8", index = None)
 
         bases = {f"{file.split('.')[0]}": DataFrameOptimized(pd.read_csv(os.path.join(const.ROOT_DIR, f"files/temp/{file}"))) for file in os.listdir(os.path.join(const.ROOT_DIR, f"files/temp"))}
         # bases = {f"{keys[idx]}": result for idx, result in enumerate(results)}

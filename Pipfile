@@ -17,6 +17,7 @@ openpyxl = "*"
 autopep8 = "*"
 black = "*"
 yapf = "*"
+ipykernel = "*"
 
 [requires]
 python_version = "3.9"

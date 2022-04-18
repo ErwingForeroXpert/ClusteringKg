@@ -13,7 +13,10 @@ sources:
               pos: 3
             - column: atencion
               pos: 4
-        message: 'Seleccionar el archivo de base de socios' 
+        converters:
+            cod_cliente: number
+            cod_loc: number
+            cod_agente: number
     base_coordenadas:
         type: file
         sheet: Base
@@ -30,7 +33,10 @@ sources:
               pos: 4
             - column: cod_ecom
               pos: 5
-        message: 'Seleccionar el archivo de coordenadas'
+        converters:
+            cod_cliente: number
+            cod_agente: number
+            cod_ecom: number
     base_universo_directa:
         type: file
         sheet: Maestra
@@ -49,7 +55,10 @@ sources:
               pos: 57
             - column: jefe
               pos: 58
-        message: 'Seleccionar el archivo de universo directa'
+        converters:
+            cod_cliente: number
+            cod_vendedor: number
+            subcanal: number
     base_universo_indirecta:
           type: file
           sheet: BD
@@ -64,7 +73,9 @@ sources:
                 pos: 35
               - column: jefe
                 pos: 36
-          message: 'Seleccionar el archivo de universo indirecta'
+          converters:
+              subcanal: number
+              cod_jefe: number
     base_consulta_directa:
           type: folder
           sheet: 0
@@ -81,7 +92,10 @@ sources:
                   pos: 4
                 - column: venta_kilos
                   pos: 5
-          message: 'Seleccionar la carpeta de consulta directa'
+          converters:
+              cod_cliente: number
+              venta_pesos: number
+              venta_kilos: number
     base_consulta_indirecta:
         type: folder
         sheet: 0

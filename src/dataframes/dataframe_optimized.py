@@ -458,18 +458,24 @@ class DataFrameOptimized():
                 **kargs
             )
 
-        columns_with_suffixes = filter(lambda column: reduce(lambda a,b: (a in column) | (b in column), suffixes), _temp_table.columns.tolist())
+        columns_with_suffixes = list(filter(lambda column: reduce(lambda a,b: (a in column) | (b in column), suffixes), _temp_table.columns.tolist()))
 
-        for idx, left_column in enumerate(columns_with_suffixes[::2]):
-            right_column = columns_with_suffixes[idx+1]
-            mask = pd.isna(left_column)
-            column_without_suffixes = columns_with_suffixes[0]
+        count = 0
+
+        while len(columns_with_suffixes[count::2]) == 2:
+
+            pair = columns_with_suffixes[count::2]
+            mask = pd.isna(_temp_table[pair[0]])
+            column_without_suffixes = pair[0]
+
             #delete suffixes
             for suffix in suffixes:
-                column_without_suffixes.replace(suffix, "")
+                column_without_suffixes = column_without_suffixes.replace(suffix, "")
 
-            _temp_table.loc[~mask, column_without_suffixes] =  _temp_table[left_column]
-            _temp_table.loc[mask, column_without_suffixes] =  _temp_table[right_column]
+            _temp_table.loc[~mask, column_without_suffixes] =  _temp_table.loc[~mask, pair[0]]
+            _temp_table.loc[mask, column_without_suffixes] =  _temp_table.loc[mask, pair[1]]
+        
+            count += 1
             
 
         _temp_table.drop([*columns_with_suffixes, "_merge"], axis = 1, inplace = True)
