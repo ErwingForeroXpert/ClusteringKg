@@ -148,7 +148,7 @@ class Cluster(dto.DataFrameOptimized):
             on=columns_general[:3], # merge by cod_cliente, cod_loc and cod_ecom
             how="left")
 
-    def process_bases_query(self, bases_query: 'list(list[dto.DataFrameOptimized])', types: 'list(str)') -> None:
+    def process_bases_query(self, bases_query: 'list(list[dto.DataFrameOptimized])', types: 'list(str)', lots: int = 6) -> None:
         bases = []
         columns_general = self.table.columns.to_list()
         table_general = self.table
@@ -156,22 +156,49 @@ class Cluster(dto.DataFrameOptimized):
         for base, type in zip(bases_query, types):
 
             if type == TYPE_CLUSTERS.DIRECTA.value:
-                table_query = base.table
-                columns_query = base.table.columns
-                new_base = base.table.pivot(index=[columns_query[0], 'marca'], columns='mes', values=['venta_pesos', 'venta_kilos']).fillna(0)
+                table_query = base[0].table
+                columns = table_query.columns.tolist()
 
+                #standardize year format
+                mask_no_empty_months = ~pd.isna(table_query[columns[1]])
+                table_query.loc[mask_no_empty_months, columns[1]] = \
+                    table_query.loc[mask_no_empty_months, columns[1]].apply(lambda x: f"{str(x).split('.')[0]}.{str(x).split('.')[1].zfill(2)}")
+
+                new_base = table_query.drop_duplicates(columns[:3]).pivot(index=[columns[0], columns[2]], columns=columns[1], values=columns[3:]).fillna(0)
+
+                #change columns for the same 
+                columns_query = ["_".join(map(str, cols)) for cols in new_base.columns]
+                new_base.columns = columns_query
+
+                #unique dates
+                dates = sorted(np.unique([v.group(0) for col in columns_query if \
+                    (v:=re.search(r"\d{4}\.\d{1,2}", str(col))) is not None]))
+
+                #change columns names for standar "type_num"
+                new_base.rename(columns={f"{year}": f"{'_'.join(year.split('_')[:-1])}_{dates.index(v.group(0))+1}" for year in columns_query if \
+                    (v:=re.search(r"\d{4}\.\d{1,2}", str(year))) is not None}, inplace=True)
+                new_base.reset_index(inplace=True, level = new_base.index.names)
+
+                cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
+                cols_kilos = sorted([col for col in new_base.columns.tolist() if "venta_kilos" in col.lower()], key=lambda x: func.mask_number(x))
+
+                new_base[["prom_act_pesos", "prom_ant_pesos", "activo_anterior_pesos", "activo_actual_pesos"]] = \
+                    new_base[cols_pesos].fillna(0).apply(lambda row: self.get_average(row, lots, cols_pesos), axis=1).tolist()
+                new_base[["prom_act_kilos", "prom_ant_kilos", "activo_anterior_kilos", "activo_actual_kilos"]] = \
+                    new_base[cols_kilos].fillna(0).apply(lambda row: self.get_average(row, lots, cols_kilos), axis=1).tolist()
+
+                #merge with principal table
                 res_base = table_general.merge(
                     right=new_base, #cod_cliente, ...coords
-                    right_on=columns_query[1], #cod_cliente
+                    right_on=new_base.columns[0], #cod_cliente
                     left_on= columns_general[0], #cod_cliente
                     how="left"
                 )
 
-                found = ~pd.isna(res_base[columns_query]).any(axis=1)
-
                 bases.append(
-                    res_base[found]
+                    res_base
                 )
+                
             elif type == TYPE_CLUSTERS.INDIRECTA.value:
                 base_1 = base[0].table
                 base_2 = base[1].table
@@ -183,22 +210,38 @@ class Cluster(dto.DataFrameOptimized):
                 #rename columns
                 base_2.rename(columns={f"{sale}": f"{sale.replace(str(func.mask_number(sale)), max_sale_pesos + func.mask_number(sale))}" for sale in columns_query_2 if "ventas" in sale})
                 
-                res_base = base_1.merge(
+                new_base = base_1.merge(
                     right=base_2, #cod_cliente, ...coords
                     right_on=columns_query_2[:3], #cod_agente, cod_ecom, marca
                     left_on= columns_query_1[:3], 
                     how="left"
                 )
                 
+                cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
+                cols_kilos = sorted([col for col in new_base.columns.tolist() if "venta_kilos" in col.lower()], key=lambda x: func.mask_number(x))
+
+                new_base[["prom_act_pesos", "prom_ant_pesos", "activo_anterior_pesos", "activo_actual_pesos"]] = \
+                    new_base[cols_pesos].fillna(0).apply(lambda row: self.get_average(row, 6, cols_pesos), axis=1).tolist()
+                new_base[["prom_act_kilos", "prom_ant_kilos", "activo_anterior_kilos", "activo_actual_kilos"]] = \
+                    new_base[cols_kilos].fillna(0).apply(lambda row: self.get_average(row, 6, cols_kilos), axis=1).tolist()
+
+                #merge with principal table
+                res_base = table_general.merge(
+                    right=new_base, #cod_cliente, ...coords
+                    right_on=new_base[2], #cod_jefe
+                    left_on= columns_general[0], #cod_cliente
+                    how="left"
+                )
+
                 bases.append(
                     res_base
                 )
-
-        self.table = self.combine_columns(
-            data=bases, 
-            suffixes=("_x", "_y"),
-            on=utils.get_same_list(cols_found), # get same columns in two bases
-            how="left")
+                
+            self.table = self.combine_columns(
+                data=bases, 
+                suffixes=("_x", "_y"),
+                on=columns_general[:3], # merge by cod_cliente, cod_loc and cod_ecom
+                how="left")
 
     @staticmethod
     def preprocess_base(path: 'str|list', properties: dict) -> 'dto.DataFrameOptimized|list[dto.DataFrameOptimized]':
@@ -223,10 +266,10 @@ class Cluster(dto.DataFrameOptimized):
                     elif not str(col["pos"]).isnumeric():
 
                         temp_headers = Cluster.__extract_column(str(col["pos"]))
-                        temp_headers = [v-(min(temp_headers)-1) for v in temp_headers]
+                        temp_headers_init = [v-(min(temp_headers)-1) for v in temp_headers]
 
                         header_idx.extend(temp_headers)
-                        header_names.extend([f"{col['column']}_{head}" for head in temp_headers])
+                        header_names.extend([f"{col['column']}_{head}" for head in temp_headers_init])
             
             if converters is not None:
                 converters = Cluster.process_converters(converters)
@@ -304,28 +347,39 @@ class Cluster(dto.DataFrameOptimized):
                 pair_bases.append(bases[key])
                 self.process_bases_query(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
     
-    def get_average(row_values: pd.Series, lots: int, columns: list[str], umbral: int = 0.3) -> pd.Series:
-        group_act = columns[len(columns)-lots:]
-        group_ant = columns[len(columns)-(lots*2):len(columns)-lots]
-        group_old = columns[:len(columns)-(lots*2)]
+    def get_average(self, row_values: pd.Series, lots: int, columns: list[str], umbral: int = 0.3) -> pd.Series:
+        group_act = row_values[len(columns)-lots:]
+        group_ant = row_values[len(columns)-(lots*2):len(columns)-lots]
+        group_old = row_values[:len(columns)-(lots*2)]
         
         size_old = np.array(group_old).size
-        active_old = size_old if (v:=np.where(np.array(group_old) > 0)).size == 0 else v[0]
-        old_quantity = (size_old - active_old)/size_old
+        end_moth_old = size_old if (v:=np.where(np.array(group_old) > 0)[0]).size == 0 else v[0]
+        old_quantity = (size_old - end_moth_old)/size_old
 
         size_ant = np.array(group_ant).size
-        active_ant = size_ant if (v:=np.where(np.array(group_ant) > 0)).size == 0 else v[0]
-        ant_quantity = (size_ant - active_ant)/size_ant
+        end_moth_ant = size_ant if (v:=np.where(np.array(group_ant) > 0)[0]).size == 0 else v[0]
+        ant_quantity = (size_ant - end_moth_ant)/size_ant
 
         size_act = np.array(group_act).size
-        active_act = size_act if (v:=np.where(np.array(group_act) > 0)).size == 0 else v[0]
-        act_quantity = (size_act - active_act)/size_act
+        end_moth_act = size_act if (v:=np.where(np.array(group_act) > 0)[0]).size == 0 else v[0]
+        act_quantity = (size_act - end_moth_act)/size_act
 
-        prom_act, prom_ant = np.nan
-        if ant_quantity > umbral:
-            prom_act = np.sum(group_act)/lots
-        
+        prom_act, prom_ant = np.nan, np.nan
+        ant_active, act_active = False, False
+
         if old_quantity > umbral:
-            prom_ant = np.sum(group_ant)/lots
+            ant_active = True
+            if ant_quantity > umbral and end_moth_ant >= lots//2:
+                prom_ant = np.sum(group_ant)/(lots-end_moth_ant)
+                if act_quantity > umbral and end_moth_act >= lots//2:
+                    act_active = True
+                    prom_ant = np.sum(group_ant)/lots
+                    prom_act = np.sum(group_act)/lots
+        else:
+            if ant_quantity > umbral and end_moth_ant >= lots//2:
+                act_active = True
+                prom_ant = np.sum(group_ant)/lots
+                prom_act = np.sum(group_act)/lots
+
         
-        return prom_ant, prom_act
+        return prom_ant, prom_act, ant_active, act_active
