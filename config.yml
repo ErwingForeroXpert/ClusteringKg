@@ -101,7 +101,7 @@ sources:
     base_consulta_indirecta:
         type: folder
         sheet: 0
-        skiprows: 2
+        skiprows: 3
         encoding: latin-1
         columns: 
             - - column: cod_agente
@@ -110,9 +110,9 @@ sources:
                 pos: 2
               - column: marca
                 pos: 3
-              - column: ventas_pesos
+              - column: venta_pesos
                 pos: '4-15'
-              - column: ventas_kilos
+              - column: venta_kilos
                 pos: '16-27'
             - - column: cod_agente
                 pos: 1

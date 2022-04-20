@@ -22,7 +22,19 @@ class Cluster(dto.DataFrameOptimized):
         return list(range(int(arr[0])-1, int(arr[1])))
         
     def process_base_partners(self, base_partners: dto.DataFrameOptimized) -> None:
+        """Process base of partners
 
+        the next process does:
+            Extract the columns and table of base_partners, then create three mask with the next rules:
+                column[0,1,2] has a number inside
+            then validate for directa:
+                if "cliente" or "loc" has been found with numerical values
+            then validate for indirecta:
+                if "cliente" and "agente" has been found with numerical values
+            then create a new column called "socios" with False or True based on the above rules
+        Args:
+            base_partners (dto.DataFrameOptimized): base of partners
+        """
         columns = base_partners.table.columns.to_list()
         base = base_partners.table
         
@@ -50,6 +62,18 @@ class Cluster(dto.DataFrameOptimized):
         self.table = base[[*columns[:3], "socios"]]
 
     def process_base_coords(self, base_coords: dto.DataFrameOptimized) -> None:
+        """Process base of coords
+
+        the next process does:
+            Extract the columns and table of base_coords
+            then same extract the columns and table of self.table.
+            then convert in number the columns 0,3,4.
+            then extract coords for base directa and does the same with indirecta
+            then delete column 4
+            and finally merge both bases and saved in self.table
+        Args:
+            base_coords (dto.DataFrameOptimized): base of coords
+        """
 
         columns_coords = base_coords.table.columns.to_list()
         columns_general = self.table.columns.to_list()
@@ -86,7 +110,6 @@ class Cluster(dto.DataFrameOptimized):
             how="left")
     
     def process_bases_universe(self, bases_universe: 'list(dto.DataFrameOptimized)', types: 'list(str)') -> None:
-
         bases = []
         columns_general = self.table.columns.to_list()
         table_general = self.table
@@ -182,12 +205,13 @@ class Cluster(dto.DataFrameOptimized):
                 cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
                 cols_kilos = sorted([col for col in new_base.columns.tolist() if "venta_kilos" in col.lower()], key=lambda x: func.mask_number(x))
 
-                new_base[["prom_act_pesos", "prom_ant_pesos", "activo_anterior_pesos", "activo_actual_pesos"]] = \
-                    new_base[cols_pesos].fillna(0).apply(lambda row: self.get_average(row, lots, cols_pesos), axis=1).tolist()
-                new_base[["prom_act_kilos", "prom_ant_kilos", "activo_anterior_kilos", "activo_actual_kilos"]] = \
-                    new_base[cols_kilos].fillna(0).apply(lambda row: self.get_average(row, lots, cols_kilos), axis=1).tolist()
+                new_base[["prom_act_pesos", "prom_ant_pesos", "status"]] = \
+                    new_base[cols_pesos].fillna(0).apply(lambda row: self.get_average(row, lots), axis=1).tolist()
+                new_base[["prom_act_kilos", "prom_ant_kilos", "status"]] = \
+                    new_base[cols_kilos].fillna(0).apply(lambda row: self.get_average(row, lots), axis=1).tolist()
 
                 #merge with principal table
+
                 res_base = table_general.merge(
                     right=new_base, #cod_cliente, ...coords
                     right_on=new_base.columns[0], #cod_cliente
@@ -200,6 +224,7 @@ class Cluster(dto.DataFrameOptimized):
                 )
                 
             elif type == TYPE_CLUSTERS.INDIRECTA.value:
+
                 base_1 = base[0].table
                 base_2 = base[1].table
                 columns_query_1 = base_1.columns.tolist()
@@ -208,28 +233,48 @@ class Cluster(dto.DataFrameOptimized):
                 max_sale_pesos = max([func.mask_number(sale) for sale in columns_query_1 if "ventas_pesos" in sale])
 
                 #rename columns
-                base_2.rename(columns={f"{sale}": f"{sale.replace(str(func.mask_number(sale)), max_sale_pesos + func.mask_number(sale))}" for sale in columns_query_2 if "ventas" in sale})
+                base_2.rename(columns={f"{sale}": \
+                    f"{sale.replace(str(func.mask_number(sale)), str(max_sale_pesos + func.mask_number(sale)))}" \
+                        for sale in columns_query_2 if "ventas" in sale}, inplace=True)
                 
                 new_base = base_1.merge(
-                    right=base_2, #cod_cliente, ...coords
-                    right_on=columns_query_2[:3], #cod_agente, cod_ecom, marca
+                    right=base_2, 
+                    right_on=base_2.columns.tolist()[:3], #cod_agente, cod_ecom
                     left_on= columns_query_1[:3], 
                     how="left"
                 )
                 
-                cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
-                cols_kilos = sorted([col for col in new_base.columns.tolist() if "venta_kilos" in col.lower()], key=lambda x: func.mask_number(x))
+                # delete - discomment lines down
+                cols_pesos = sorted([col for col in new_base.columns.tolist() if "ventas_pesos" in col.lower()], key=lambda x: func.mask_number(x))
+                cols_kilos = sorted([col for col in new_base.columns.tolist() if "ventas_kilos" in col.lower()], key=lambda x: func.mask_number(x))
 
-                new_base[["prom_act_pesos", "prom_ant_pesos", "activo_anterior_pesos", "activo_actual_pesos"]] = \
-                    new_base[cols_pesos].fillna(0).apply(lambda row: self.get_average(row, 6, cols_pesos), axis=1).tolist()
-                new_base[["prom_act_kilos", "prom_ant_kilos", "activo_anterior_kilos", "activo_actual_kilos"]] = \
-                    new_base[cols_kilos].fillna(0).apply(lambda row: self.get_average(row, 6, cols_kilos), axis=1).tolist()
+                # cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
+                # cols_kilos = sorted([col for col in new_base.columns.tolist() if "venta_kilos" in col.lower()], key=lambda x: func.mask_number(x))
+
+                new_base = new_base[~new_base[cols_pesos[2]].astype(str).str.contains(pat=r'COP', regex=True)] #delete
+                
+                #remove nan values
+                new_base[[*cols_pesos, *cols_kilos]] = new_base[[*cols_pesos, *cols_kilos]].fillna(0)
+                
+                #group by "cliente"
+                base_clients = new_base.groupby(new_base.columns.tolist()[0], as_index=False).agg({
+                    f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
+                })
+                
+                #get active months
+                base_clients[["meses_act_activos", "meses_ant_activos"]] = new_base[cols_pesos].apply(lambda row: self.get_active_months(row, lots), axis=1).tolist()
+
+                #get prom of sales
+                new_base[["prom_act_pesos", "prom_ant_pesos", "status"]] = \
+                    new_base[cols_pesos].apply(lambda row: self.get_average(row, lots), axis=1).tolist()
+                new_base[["prom_act_kilos", "prom_ant_kilos", "status"]] = \
+                    new_base[cols_kilos].apply(lambda row: self.get_average(row, lots), axis=1).tolist()
 
                 #merge with principal table
                 res_base = table_general.merge(
-                    right=new_base, #cod_cliente, ...coords
-                    right_on=new_base[2], #cod_jefe
-                    left_on= columns_general[0], #cod_cliente
+                    right=new_base, 
+                    right_on=new_base.columns.tolist()[0], #cod_agente
+                    left_on= columns_general[2], #cod_agente
                     how="left"
                 )
 
@@ -237,14 +282,28 @@ class Cluster(dto.DataFrameOptimized):
                     res_base
                 )
                 
-            self.table = self.combine_columns(
-                data=bases, 
-                suffixes=("_x", "_y"),
-                on=columns_general[:3], # merge by cod_cliente, cod_loc and cod_ecom
-                how="left")
+        self.table = self.combine_columns(
+            data=bases, 
+            suffixes=("_x", "_y"),
+            on=columns_general[:3], # merge by cod_cliente, cod_loc and cod_ecom
+            how="left")
 
     @staticmethod
     def preprocess_base(path: 'str|list', properties: dict) -> 'dto.DataFrameOptimized|list[dto.DataFrameOptimized]':
+        """Preprocess Base 
+
+            for file:
+                - It'll extract indices and names of columns, then process converters and skiprows finally get the dataframe
+            for folder:
+                - It'll extract num of bases based in num of list columns, then iterate through the files on the path and it'll extract actual year and based this
+                year extract indice of column, then replace columns and extract the dataframe then be saved inside the list
+        Raises:
+            ValueError: if properties.type == "folder" isn't has a path iterable
+
+        Returns:
+            dto.DataFrameOptimized|list[dto.DataFrameOptimized]: one dataframe for properties.type == "file" or
+                                                                    list of dataframe for properties.type == "folder"
+        """
         if properties["type"] == "file":
             converters = properties["converters"] if "converters" in properties.keys(
             ) else None
@@ -315,6 +374,25 @@ class Cluster(dto.DataFrameOptimized):
 
     @staticmethod
     def process_converters(converters: dict) -> dict:
+        """Change string converters to specific type
+
+        Args:
+            converters (dict): dict of converters
+
+            Example:
+                {
+                    ...,
+                    "column": "text"
+                }
+                result:
+                {
+                    ...,
+                    "column": <func.mask_text>
+                }
+
+        Returns:
+            dict: converters with function for convert
+        """
         _converters = {}
         for key, conv in converters.items():
             if conv.lower() == "number":
@@ -324,6 +402,12 @@ class Cluster(dto.DataFrameOptimized):
         return _converters
 
     async def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', order: 'list[str]'):
+        """Merge all bases
+
+        Args:
+            bases (dict[str, dto.DataFrameOptimized]): list of bases to merge
+            order (list[str]): order to merge
+        """
         pair_bases = []
         for key in order:
             if "socios" in key.lower():
@@ -347,39 +431,107 @@ class Cluster(dto.DataFrameOptimized):
                 pair_bases.append(bases[key])
                 self.process_bases_query(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
     
-    def get_average(self, row_values: pd.Series, lots: int, columns: list[str], umbral: int = 0.3) -> pd.Series:
-        group_act = row_values[len(columns)-lots:]
-        group_ant = row_values[len(columns)-(lots*2):len(columns)-lots]
-        group_old = row_values[:len(columns)-(lots*2)]
-        
-        size_old = np.array(group_old).size
-        end_moth_old = size_old if (v:=np.where(np.array(group_old) > 0)[0]).size == 0 else v[0]
+    def get_active_months(self, row_values: pd.Series, lots: int, umbral: int = 0.3) -> 'tuple(float, float, str)':
+        """Get months active based on rules
+
+        Args:
+            row_values (pd.Series): values 
+            lots (int): size of division values.
+
+                Example: lots = 6, size_values = 18
+                actual: 18-12
+                anterior: 11-5
+                viejo: 0-4
+
+            umbral (int, optional): umbral of valid active lots. Defaults to 0.3.
+
+        Returns:
+            tuple(float, float, str): months active after, months active before, status
+        """
+        type_status = [
+            "Nunca ha comprando", 
+            "Empezo a comprar", 
+            "Dejo de comprar", 
+            "Sigue comprando"
+        ]
+        group_old = np.array(row_values[:len(row_values)-(lots*2)], dtype=np.float64)
+        group_act = np.array(row_values[len(row_values)-lots:], dtype=np.float64)
+        group_ant = np.array(row_values[len(row_values)-(lots*2):len(row_values)-lots], dtype=np.float64)
+
+        size_old = group_old.size
+        end_moth_old = size_old if (v:=np.where(group_old > 0)[0]).size == 0 else v[0]
         old_quantity = (size_old - end_moth_old)/size_old
 
-        size_ant = np.array(group_ant).size
-        end_moth_ant = size_ant if (v:=np.where(np.array(group_ant) > 0)[0]).size == 0 else v[0]
+        size_ant = group_ant.size
+        end_moth_ant = size_ant if (v:=np.where(group_ant > 0)[0]).size == 0 else v[0]
         ant_quantity = (size_ant - end_moth_ant)/size_ant
 
-        size_act = np.array(group_act).size
-        end_moth_act = size_act if (v:=np.where(np.array(group_act) > 0)[0]).size == 0 else v[0]
+        size_act = group_act.size
+        end_moth_act = size_act if (v:=np.where(group_act > 0)[0]).size == 0 else v[0]
+        act_quantity = (size_act - end_moth_act)/size_act
+
+        end_moth_act, end_moth_ant = 0, 0
+        status = type_status[0]
+
+        if old_quantity > umbral:
+            if ant_quantity > umbral and end_moth_ant >= lots//2:
+                end_moth_ant = (lots-end_moth_ant)
+                status = type_status[2]
+                if act_quantity > umbral and end_moth_act >= lots//2:
+                    status = type_status[3]
+                    end_moth_act = lots
+                    end_moth_ant = lots
+        else:
+            if ant_quantity > umbral and end_moth_ant >= lots//2:
+                end_moth_ant = lots
+                end_moth_act = lots
+                if act_quantity > umbral and end_moth_act >= lots//2:
+                    status = type_status[3]
+                else:
+                    status = type_status[2]
+            elif act_quantity > umbral and end_moth_act >= lots//2:
+                status = type_status[1]
+
+        return end_moth_act, end_moth_ant, status
+
+    def get_average(self, row_values: pd.Series, lots: int) -> 'tuple(float, float)':
+
+        group_act = np.array(row_values[len(row_values)-lots:], dtype=np.float64)
+        group_ant = np.array(row_values[len(row_values)-(lots*2):len(row_values)-lots], dtype=np.float64)
+        group_old = np.array(row_values[:len(row_values)-(lots*2)], dtype=np.float64)
+        
+        size_old = group_old.size
+        end_moth_old = size_old if (v:=np.where(group_old > 0)[0]).size == 0 else v[0]
+        old_quantity = (size_old - end_moth_old)/size_old
+
+        size_ant = group_ant.size
+        end_moth_ant = size_ant if (v:=np.where(group_ant > 0)[0]).size == 0 else v[0]
+        ant_quantity = (size_ant - end_moth_ant)/size_ant
+
+        size_act = group_act.size
+        end_moth_act = size_act if (v:=np.where(group_act > 0)[0]).size == 0 else v[0]
         act_quantity = (size_act - end_moth_act)/size_act
 
         prom_act, prom_ant = np.nan, np.nan
-        ant_active, act_active = False, False
+        status = type_status[0]
 
         if old_quantity > umbral:
-            ant_active = True
             if ant_quantity > umbral and end_moth_ant >= lots//2:
                 prom_ant = np.sum(group_ant)/(lots-end_moth_ant)
+                status = type_status[2]
                 if act_quantity > umbral and end_moth_act >= lots//2:
-                    act_active = True
+                    status = type_status[3]
                     prom_ant = np.sum(group_ant)/lots
                     prom_act = np.sum(group_act)/lots
         else:
             if ant_quantity > umbral and end_moth_ant >= lots//2:
-                act_active = True
                 prom_ant = np.sum(group_ant)/lots
                 prom_act = np.sum(group_act)/lots
-
+                if act_quantity > umbral and end_moth_act >= lots//2:
+                    status = type_status[3]
+                else:
+                    status = type_status[2]
+            elif act_quantity > umbral and end_moth_act >= lots//2:
+                status = type_status[1]
         
-        return prom_ant, prom_act, ant_active, act_active
+        return prom_ant, prom_act, status

@@ -95,3 +95,4 @@ bases = loop.run_until_complete(get_bases(sources, files_found, cached_data=True
 
 final_base = Cluster()
 loop.run_until_complete(final_base.merge_all(bases, config["order_base"]))
+final_base.table.to_csv("base_final.csv", index=False, encoding="utf-8")
