@@ -4,11 +4,12 @@
 #
 
 from copy import copy
+from multiprocessing.pool import ThreadPool
 import re
 import numpy as np
 import pandas as pd
 from dataframes import dataframe_optimized as dto, func
-from utils import index as utils
+from utils import feature_flags, index as utils
 from .cluster_types import TYPE_CLUSTERS
 from tqdm import tqdm
 
@@ -55,10 +56,11 @@ class Cluster(dto.DataFrameOptimized):
 
         base.loc[(mask_directa | mask_indirecta), "socios"] = True 
         
-        # delete
-        # base[columns[0]] = base[columns[0]].astype(str).apply(func.mask_number) #cod_cliente
-        # base[columns[1]] = base[columns[1]].astype(str).apply(func.mask_number) #cod_loc
-        # base[columns[2]] = base[columns[2]].astype(str).apply(func.mask_number) #cod_agente
+        #convert into number 
+        if feature_flags.ENVIROMENT == "DEV":
+            base[columns[0]] = np.vectorize(func.mask_number)(base[columns[0]].astype(str)) #cod_cliente
+            base[columns[1]] = np.vectorize(func.mask_number)(base[columns[1]].astype(str)) #cod_loc
+            base[columns[2]] = np.vectorize(func.mask_number)(base[columns[2]].astype(str)) #cod_agente
 
         self.table = base[[*columns[:3], "socios"]]
 
@@ -82,20 +84,21 @@ class Cluster(dto.DataFrameOptimized):
         table_coords = base_coords.table
         table_general = self.table
 
-        #convert into number - delete
-        # table_coords[columns_coords[0]] = table_coords[columns_coords[0]].astype(str).apply(func.mask_number) #cod_cliente
-        # table_coords[columns_coords[3]] = table_coords[columns_coords[3]].astype(str).apply(func.mask_number) #cod_agente
-        # table_coords[columns_coords[4]] = table_coords[columns_coords[4]].astype(str).apply(func.mask_number) #cod_ecom
+        #convert into number 
+        if feature_flags.ENVIROMENT == "DEV":
+            table_coords[columns_coords[0]] = np.vectorize(func.mask_number)(table_coords[columns_coords[0]].astype(str)) #cod_cliente
+            table_coords[columns_coords[3]] = np.vectorize(func.mask_number)(table_coords[columns_coords[3]].astype(str)) #cod_loc
+            table_coords[columns_coords[4]] = np.vectorize(func.mask_number)(table_coords[columns_coords[4]].astype(str)) #cod_agente
 
         coords_indirecta = table_general.merge(
             right=table_coords[columns_coords[1:]],
-            right_on=[columns_coords[3],columns_coords[4]], #agente y codigo ecom
+            right_on=[columns_coords[3], columns_coords[4]], #agente y codigo ecom
             left_on= [columns_general[2], columns_general[0]], #agente y cod_cliente (ecom)
             how="left"
         )
 
         #delete "cod_ecom" column
-        # coords_indirecta.drop(columns_coords[4], axis = 1, inplace = True) 
+        coords_indirecta.drop(columns_coords[4], axis = 1, inplace = True) 
 
         coords_directa = table_general.merge(
             right=table_coords[[columns_coords[0], *columns_coords[1:3]]], #cod_cliente, ...coords
@@ -126,8 +129,9 @@ class Cluster(dto.DataFrameOptimized):
             columns_universe = base.table.columns
 
             if type == TYPE_CLUSTERS.DIRECTA.value:
-                #convert into number - delete
-                # table_universe[columns_universe[0]] = table_universe[columns_universe[0]].astype(str).apply(func.mask_number) #cod_cliente
+                #convert into number
+                if feature_flags.ENVIROMENT == "DEV":
+                    table_universe[columns_universe[0]] = np.vectorize(func.mask_number)(table_universe[columns_universe[0]].astype(str)) #cod_cliente
 
                 res_base = table_general.merge(
                     right=table_universe, #cod_cliente, ...coords
@@ -138,8 +142,7 @@ class Cluster(dto.DataFrameOptimized):
 
                 #delete not found
                 found = ~pd.isna(res_base[columns_universe[1:]]).all(axis=1)
-                # delete
-                # res_base[columns_universe[4]] = res_base[columns_universe[4]].astype(str).apply(func.mask_number)
+
                 res_base = res_base[found]
 
                 #get repeated "vendedores"
@@ -159,10 +162,10 @@ class Cluster(dto.DataFrameOptimized):
                     new_base
                 )
             elif type == TYPE_CLUSTERS.INDIRECTA.value:
+                
                 #convert into number
-
-                #delete
-                # table_universe[columns_universe[2]] = np.vectorize(func.mask_number)(table_universe[columns_universe[2]].astype(str)) #cod_jefe
+                if feature_flags.ENVIROMENT == "DEV":
+                    table_universe[columns_universe[2]] = np.vectorize(func.mask_number)(table_universe[columns_universe[2]].astype(str)) #cod_jefe
 
                 res_base = table_general.merge(
                     right=table_universe, #cod_cliente, ...coords
@@ -181,7 +184,7 @@ class Cluster(dto.DataFrameOptimized):
             on=columns_general[:3], # merge by cod_cliente, cod_loc and cod_ecom
             how="left")
 
-    def process_bases_query(self, bases_query: 'list(list[dto.DataFrameOptimized])', types: 'list(str)', lots: int = 6) -> None:
+    async def process_bases_query(self, bases_query: 'list(list[dto.DataFrameOptimized])', types: 'list(str)', lots: int = 6) -> None:
         ""
         bases = []
         columns_general = self.table.columns.to_list()
@@ -238,8 +241,15 @@ class Cluster(dto.DataFrameOptimized):
                 )[[*months_cols, "status"]]
 
                 #get prom of sales
-                new_base[["prom_ant_pesos", "prom_act_pesos"]] = np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_pesos, *months_cols]].values)
-                new_base[["prom_ant_kilos", "prom_act_kilos"]] = np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values)
+                pool = ThreadPool(processes=2)
+                results = [pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_pesos, *months_cols]].values), ()),
+                            pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values), ())
+                ]
+                new_base[["prom_ant_pesos", "prom_act_pesos"]] = results[0].get()
+                new_base[["prom_ant_kilos", "prom_act_kilos"]] = results[1].get()
+
+                if feature_flags.ENVIROMENT == "DEV":
+                    new_base[new_base.columns[0]] = np.vectorize(func.mask_number)(new_base[new_base.columns[0]].astype(str)) #cod_cliente
 
                 #merge with principal table
                 res_base = table_general.merge(
@@ -260,12 +270,12 @@ class Cluster(dto.DataFrameOptimized):
                 columns_query_1 = base_1.columns.tolist()
                 columns_query_2 = base_2.columns.tolist()
 
-                max_sale_pesos = max([func.mask_number(sale) for sale in columns_query_1 if "ventas_pesos" in sale])
+                max_sale_pesos = max([func.mask_number(sale) for sale in columns_query_1 if "venta_pesos" in sale])
 
                 #rename columns
                 base_2.rename(columns={f"{sale}": \
                     f"{sale.replace(str(func.mask_number(sale)), str(max_sale_pesos + func.mask_number(sale)))}" \
-                        for sale in columns_query_2 if "ventas" in sale}, inplace=True)
+                        for sale in columns_query_2 if "venta" in sale}, inplace=True)
                 
                 #merge both bases year before and year after
                 new_base = base_1.merge(
@@ -274,19 +284,10 @@ class Cluster(dto.DataFrameOptimized):
                     left_on= columns_query_1[:3], 
                     how="left"
                 )
-                
-                # delete
-                # cols_pesos = sorted([col for col in new_base.columns.tolist() if "ventas_pesos" in col.lower()], key=lambda x: func.mask_number(x))
-                # cols_kilos = sorted([col for col in new_base.columns.tolist() if "ventas_kilos" in col.lower()], key=lambda x: func.mask_number(x))
 
                 cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
                 cols_kilos = sorted([col for col in new_base.columns.tolist() if "venta_kilos" in col.lower()], key=lambda x: func.mask_number(x))
 
-                new_base = new_base[~new_base[cols_pesos[2]].astype(str).str.contains(pat=r'COP', regex=True)] #delete
-                
-                #tranform to number and remove nan values
-                for col in [*cols_pesos, *cols_kilos]:
-                    new_base[col] = np.vectorize(func.mask_number)(new_base[col].astype(str).tolist())
 
                 new_base[[*cols_pesos, *cols_kilos]] = new_base[[*cols_pesos, *cols_kilos]].fillna(0)
 
@@ -307,14 +308,23 @@ class Cluster(dto.DataFrameOptimized):
                 )[[*months_cols, "status"]]
 
                 #get prom of sales
-                new_base[["prom_ant_pesos", "prom_act_pesos"]] = np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_pesos, *months_cols]].values)
-                new_base[["prom_ant_kilos", "prom_act_kilos"]] = np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values)
+                pool = ThreadPool(processes=2)
+                results = [pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_pesos, *months_cols]].values), ()),
+                            pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values), ())
+                ]
+
+                new_base[["prom_ant_pesos", "prom_act_pesos"]] = results[0].get()
+                new_base[["prom_ant_kilos", "prom_act_kilos"]] = results[1].get()
+
+                if feature_flags.ENVIROMENT == "DEV":
+                    new_base[new_base.columns[0]] = np.vectorize(func.mask_number)(new_base[new_base.columns[0]].astype(str)) #cod_agente
+                    new_base[new_base.columns[1]] = np.vectorize(func.mask_number)(new_base[new_base.columns[1]].astype(str)) #cod_ecom
 
                 #merge with principal table
                 res_base = table_general.merge(
                     right=new_base, 
-                    right_on=new_base.columns.tolist()[0], #cod_agente
-                    left_on= columns_general[2], #cod_agente
+                    right_on= new_base.columns.tolist()[:2], #cod_agente, cod_ecom
+                    left_on= [columns_general[2], columns_general[0]], #cod_agente, cod_cliente (ecom)
                     how="left"
                 )
 
@@ -337,13 +347,13 @@ class Cluster(dto.DataFrameOptimized):
                 }).sort_values(by=["total_pesos"], ascending=False).iloc[:4]["marca"].tolist()
         
         #filter only for brands with more sales
-        more_sales_pivot = more_sales[more_sales["marca"].isin(brands_with_more_sales)].pivot(index=["cod_cliente"], columns="marca", \
+        more_sales_pivot = more_sales[more_sales["marca"].isin(brands_with_more_sales)].drop_duplicates(["cod_cliente", "marca"]).pivot(index=["cod_cliente"], columns="marca", \
             values=["prom_ant_pesos", "prom_act_pesos", "prom_ant_kilos", "prom_act_kilos", "status"])
         columns_more_sales = ["_".join(map(str, cols)) for cols in more_sales_pivot.columns]
         more_sales_pivot.columns = columns_more_sales
         more_sales_pivot.reset_index(inplace=True)
 
-        self.table.merge(
+        self.table = self.table.merge(
             right=more_sales_pivot, 
             on=more_sales_pivot.columns.tolist()[0], # merge by cod_cliente
             how="left"
@@ -421,8 +431,8 @@ class Cluster(dto.DataFrameOptimized):
         Returns:
             tuple(float, float): result of average
         """
-        months = np.array(row_values[len(cols_months):], dtype=np.float64) #ant, act
         len_without_months = len(row_values)-len(cols_months)
+        months = np.array(row_values[len_without_months:], dtype=np.float64) #ant, act
         group_act = np.array(row_values[len_without_months-lots:len_without_months], dtype=np.float64)
         group_ant = np.array(row_values[len_without_months-(lots*2):len_without_months-lots], dtype=np.float64)
 
@@ -435,7 +445,7 @@ class Cluster(dto.DataFrameOptimized):
 
         return prom_ant, prom_act
 
-    def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', order: 'list[str]'):
+    async def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', order: 'list[str]'):
         """Merge all bases
 
         Args:
@@ -447,31 +457,32 @@ class Cluster(dto.DataFrameOptimized):
         for key in order:
             if "socios" in key.lower():
                 pbar.write(f'procesando la base de socios...')
+                self.process_base_partners(bases[key]) 
                 pbar.update(1)
-                self.process_base_partners(bases[key])  
+
             elif "coordenadas" in key.lower():
                 pbar.write(f'procesando la base de coordenadas...')
-                pbar.update(1)
                 self.process_base_coords(bases[key])
-                
+                pbar.update(1)
+
             elif "universo_directa" in key.lower():
                 pair_bases.append(bases[key])
 
             elif "universo_indirecta" in key.lower():
                 pbar.write(f'procesando la base de universos...')
-                pbar.update(1)
                 pair_bases.append(bases[key])
                 self.process_bases_universe(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
                 pair_bases = []
+                pbar.update(1)
 
             elif "consulta_directa" in key.lower():
                 pair_bases.append(bases[key])
 
             elif "consulta_indirecta" in key.lower():
-                pbar.write(f'procesando las bases de consulta...')
-                pbar.update(1) 
+                pbar.write(f'procesando las bases de consulta...') 
                 pair_bases.append(bases[key])
-                self.process_bases_query(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
+                await self.process_bases_query(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
+                pbar.update(1)
 
         pbar.close()
 

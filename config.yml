@@ -60,7 +60,6 @@ sources:
         converters:
             cod_cliente: number
             cod_vendedor: number
-            subcanal: number
             cod_jefe: number
     base_universo_indirecta:
           type: file
@@ -121,9 +120,9 @@ sources:
                 pos: 2
               - column: marca
                 pos: 3
-              - column: ventas_pesos
+              - column: venta_pesos
                 pos: '4-7'
-              - column: ventas_kilos
+              - column: venta_kilos
                 pos: '8-11'
         converters:
               cod_agente: number

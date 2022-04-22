@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataframes.dataframe_optimized import DataFrameOptimized
 from utils import constants as const, index as utils
 
-async def get_bases(sources: dict[str, str], files: list[str], cached_data: bool = False, properties: 'dict' = None) -> 'tuple(list[str], list[DataFrameOptimized])':
+async def get_bases(sources: dict[str, str], files: list[str], cached_data: bool = False) -> 'tuple(list[str], list[DataFrameOptimized])':
     """Get DataFrames of sources
 
     Args:
@@ -22,7 +22,7 @@ async def get_bases(sources: dict[str, str], files: list[str], cached_data: bool
     """
     if cached_data is True:
         #only for test with csv value - delete
-        bases = {f"{file.split('.')[0]}": DataFrameOptimized(pd.read_csv(os.path.join(const.ROOT_DIR, f"files/temp/{file}"), **properties)) for file in os.listdir(os.path.join(const.ROOT_DIR, f"files/temp"))}
+        bases = {f"{file.split('.')[0]}": DataFrameOptimized(pd.read_csv(os.path.join(const.ROOT_DIR, f"files/temp/{file}"))) for file in os.listdir(os.path.join(const.ROOT_DIR, f"files/temp"))}
         bases["base_consulta_directa"] = [bases.pop('base_consulta_directa_0')]
         bases["base_consulta_indirecta"] = [bases.pop('base_consulta_indirecta_0'), bases.pop('base_consulta_indirecta_1')]
 
@@ -93,7 +93,7 @@ sources = config["sources"]
 #actual event loop
 loop = asyncio.get_event_loop()
 
-bases = loop.run_until_complete(get_bases(sources, files_found, cached_data=False))  
+bases = loop.run_until_complete(get_bases(sources, files_found, cached_data=True))  
 
 final_base = Cluster()
 with cProfile.Profile() as pr:

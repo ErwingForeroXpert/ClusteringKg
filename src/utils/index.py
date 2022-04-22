@@ -210,11 +210,6 @@ def get_data_of_excel_sheet(file_path: str, sheet: str, header_idx: 'list'= None
     try:
         data = None
         if "xlsm" in file_path.lower() or "xlsx" in file_path.lower():
-            #delete
-            # buffer = StringIO()
-            # Xlsx2csv(file_path, outputencoding=encoding, sheet_name=sheet).convert(buffer)
-            # buffer.seek(0)
-            # df = pd.read_csv(buffer, header=None, usecols=header_idx, skiprows=skiprows[0])
             table = pd.read_excel(file_path, sheet_name=sheet, header=None, usecols=header_idx, skiprows=skiprows[0])
             data = table.values
         elif "xlsb" in file_path.lower():
