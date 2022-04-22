@@ -359,6 +359,14 @@ class Cluster(dto.DataFrameOptimized):
             how="left"
         )
 
+    def post_process_base(self):
+        """Post process final base
+        """
+        columns = self.table.columns
+        for idx, _type in enumerate(list(self.table.dtypes)):
+            if _type == pd.StringDtype:
+                self.table[columns[idx]] = np.vectorize(func.remove_accents)(self.table[columns[idx]].astype(str))
+        
     def get_active_months(self, row_values: pd.Series, lots: int, umbral: int = 0.3) -> 'tuple(float, float, str)':
         """Get months active based on rules
 
@@ -453,7 +461,7 @@ class Cluster(dto.DataFrameOptimized):
             order (list[str]): order to merge
         """
         pair_bases = []
-        pbar = tqdm(total=4)
+        pbar = tqdm(total=5)
         for key in order:
             if "socios" in key.lower():
                 pbar.write(f'procesando la base de socios...')
@@ -484,6 +492,9 @@ class Cluster(dto.DataFrameOptimized):
                 await self.process_bases_query(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
                 pbar.update(1)
 
+        pbar.write(f'post procesando base...')     
+        self.post_process_base()
+        pbar.update(1)
         pbar.close()
 
     @staticmethod

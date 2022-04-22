@@ -7,6 +7,10 @@ from typing import Any
 from numpy import number, isnan, __name__, array, int64, NaN
 from pandas import isnull, isna
 from utils.index import is_iterable
+from unidecode import unidecode
+
+def remove_accents(input_str: str) -> str:
+    return unidecode(input_str)
 
 def validate_empty_or_cero(value):
     try:
@@ -99,3 +103,4 @@ def mask_number(value: 'Any') -> int64:
         except ValueError:
             return NaN
 
+print("hi")

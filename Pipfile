@@ -11,6 +11,7 @@ xlwings = "*"
 pyyaml = "*"
 openpyxl = "*"
 tqdm = "*"
+unidecode = "*"
 
 [dev-packages]
 autopep8 = "*"
