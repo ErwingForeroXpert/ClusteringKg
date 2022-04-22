@@ -9,7 +9,6 @@ pandas = "*"
 pyxlsb = "*"
 xlwings = "*"
 pyyaml = "*"
-xlsx2csv = "*"
 openpyxl = "*"
 tqdm = "*"
 

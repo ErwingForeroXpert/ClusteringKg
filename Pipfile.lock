@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "552774ce1b940e60feadf67bd578ddbcaceb28de1d9ba12ad28b942277400993"
+            "sha256": "3ad466fda3476a214e5382f6b725d755af464bde0058e8c6ebce43525f4ff6f7"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -188,13 +188,6 @@
             ],
             "index": "pypi",
             "version": "==4.64.0"
-        },
-        "xlsx2csv": {
-            "hashes": [
-                "sha256:c3aaf0c5febd9c5e48488026e7a58af37a67bf3da5e221cc57d371328b3b7dd3"
-            ],
-            "index": "pypi",
-            "version": "==0.7.8"
         },
         "xlwings": {
             "hashes": [
