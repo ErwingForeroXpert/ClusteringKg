@@ -86,12 +86,12 @@ def mask_price(value: 'Any') -> str:
         except AttributeError:
             return NaN
 
-def mask_number(value: 'Any') -> str:
+def mask_number(value: 'Any') -> int64:
     if isnull(value) or str(value) == "":
         return NaN
     else:
         try:
-            if (res:=re.search(r'\-*\d+',value)) is not None:
+            if (res:=re.search(r'\-*\d+',str(value))) is not None:
                 found = res.group(0)
             else:
                 found = 0

@@ -61,6 +61,7 @@ sources:
             cod_cliente: number
             cod_vendedor: number
             subcanal: number
+            cod_jefe: number
     base_universo_indirecta:
           type: file
           sheet: BD
@@ -124,6 +125,11 @@ sources:
                 pos: '4-7'
               - column: ventas_kilos
                 pos: '8-11'
+        converters:
+              cod_agente: number
+              cod_ecom: number
+              venta_pesos: number
+              venta_kilos: number
 order_base:
   - base_socios
   - base_coordenadas

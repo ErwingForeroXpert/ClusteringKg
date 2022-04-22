@@ -3,17 +3,17 @@
 #    @author: ErwingForero 
 # 
 
-import tkinter
+from io import StringIO
 import os
 import time
+import openpyxl
 import pandas as pd
 import yaml
-import pymsgbox 
 import pyxlsb as pyx
 import xlwings as xw
 import numpy as np
 from typing import Any
-from tkinter import filedialog
+from xlsx2csv import Xlsx2csv
 from . import constants as const
 
 def get_config(path: str) -> dict:
@@ -39,31 +39,6 @@ def get_config(path: str) -> dict:
         cfg = yaml.full_load(ymlfile)
     
     return cfg
-
-def search_for_file_path (message: str, required: bool = False, types: 'tuple|str' = "*")-> 'str|None':
-    """Search for a file path.
-    Args:
-        message (str):  the title of the window
-        required (bool, optional): if file is required. Defaults to be False.
-        types (tuple|str, optional): a sequence of (label, pattern) tuples, Defaults to be ‘*’ wildcard is allowed
-    Returns:
-        str|None: path of file
-    """
-    root = tkinter.Tk()
-    root.withdraw() #use to hide tkinter window
-
-    file_found = False
-    while not file_found:
-        currdir = os.getcwd()
-        tempdir = filedialog.askopenfilename(parent=root, initialdir=currdir, title=message, filetypes=types)
-        if os.path.exists(tempdir):
-            file_found = True
-        elif required:
-            pymsgbox.alert("Se requiere el archivo, por favor intentelo de nuevo", message)
-        else:
-            file_found = True
-    
-    return tempdir
 
 def wait_book_disable(mybook):
     """Wait until the book is closed
@@ -226,7 +201,7 @@ def convert_row(row: 'np.array', converter: 'list') -> 'np.array':
             row[i] = converter[i](row[i]) #1D Array
     return row
 
-def get_data_of_excel_sheet(file_path: str, sheet: str, header_idx: 'list'= None, skiprows: 'list'= None, row_converter: 'list' = None) -> 'np.array':
+def get_data_of_excel_sheet(file_path: str, sheet: str, header_idx: 'list'= None, skiprows: 'list'= None, row_converter: 'list' = None, encoding: 'str' = 'utf-8') -> 'np.array':
     """Get data of sheet in Excel File
 
     Returns:
@@ -235,8 +210,13 @@ def get_data_of_excel_sheet(file_path: str, sheet: str, header_idx: 'list'= None
     try:
         data = None
         if "xlsm" in file_path.lower() or "xlsx" in file_path.lower():
+            #delete
+            # buffer = StringIO()
+            # Xlsx2csv(file_path, outputencoding=encoding, sheet_name=sheet).convert(buffer)
+            # buffer.seek(0)
+            # df = pd.read_csv(buffer, header=None, usecols=header_idx, skiprows=skiprows[0])
             table = pd.read_excel(file_path, sheet_name=sheet, header=None, usecols=header_idx, skiprows=skiprows[0])
-            data = np.array(table)
+            data = table.values
         elif "xlsb" in file_path.lower():
             with pyx.open_workbook(file_path) as wb:
                 with wb.get_sheet(sheet) as _sheet:

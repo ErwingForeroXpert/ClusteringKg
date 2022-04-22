@@ -4,20 +4,21 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-tk = "*"
 numpy = "*"
 pandas = "*"
 pyxlsb = "*"
 xlwings = "*"
-pymsgbox = "*"
 pyyaml = "*"
+xlsx2csv = "*"
 openpyxl = "*"
+tqdm = "*"
 
 [dev-packages]
 autopep8 = "*"
 black = "*"
 yapf = "*"
 ipykernel = "*"
+snakeviz = "*"
 
 [requires]
 python_version = "3.9"
