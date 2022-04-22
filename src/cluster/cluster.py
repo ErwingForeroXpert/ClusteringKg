@@ -187,6 +187,7 @@ class Cluster(dto.DataFrameOptimized):
     async def process_bases_query(self, bases_query: 'list(list[dto.DataFrameOptimized])', types: 'list(str)', lots: int = 6) -> None:
         ""
         bases = []
+        general_bases = []
         columns_general = self.table.columns.to_list()
         table_general = self.table
 
@@ -202,7 +203,12 @@ class Cluster(dto.DataFrameOptimized):
                 table_query.loc[mask_no_empty_months, columns[1]] = \
                     np.vectorize(lambda x: f"{str(x).split('.')[0]}.{str(x).split('.')[1].zfill(2)}")(table_query.loc[mask_no_empty_months, columns[1]])
 
-                new_base = table_query.drop_duplicates(columns[:3]).pivot(index=[columns[0], columns[2]], columns=columns[1], values=columns[3:]).fillna(0)
+                #group values of sales
+                if feature_flags.ENVIROMENT == "DEV":
+                    table_query[table_query.columns[0]] = np.vectorize(func.mask_number)(table_query[table_query.columns[0]].astype(str)) #cod_cliente
+
+                group_base = table_query.groupby(columns[:3], as_index=False).agg({columns[3]: "sum", columns[4]: "sum"})
+                new_base = group_base.pivot_table(index=[columns[0], columns[2]], columns=columns[1], values=columns[3:], aggfunc="sum").fillna(0)
 
                 #change columns for the same 
                 columns_query = ["_".join(map(str, cols)) for cols in new_base.columns]
@@ -224,18 +230,19 @@ class Cluster(dto.DataFrameOptimized):
                 #remove nan values
                 new_base[[*cols_pesos, *cols_kilos]] = new_base[[*cols_pesos, *cols_kilos]].fillna(0)
 
-                #group by "agente"
-                base_agents = new_base.groupby(new_base.columns.tolist()[0], as_index=False).agg({
+                #group by "cliente"
+                base_clients = new_base.groupby(new_base.columns.tolist()[0], as_index=False).agg({
                     f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
                 })
-                
+                general_bases.append(base_clients)
+
                 #get active months
                 months_cols = ["meses_ant_activos", "meses_act_activos"]
-                base_agents[[*months_cols, "status"]] = np.apply_along_axis(lambda row: self.get_active_months(row, lots), 1, base_agents[cols_pesos].values)
+                base_clients[[*months_cols, "status"]] = np.apply_along_axis(lambda row: self.get_active_months(row, lots), 1, base_clients[cols_pesos].values)
 
                 new_base[[*months_cols, "status"]] = new_base.merge(
-                    right=base_agents[[base_agents.columns[0], *months_cols, "status"]], 
-                    right_on=base_agents.columns[0], #cod_agente
+                    right=base_clients[[base_clients.columns[0], *months_cols, "status"]], 
+                    right_on=base_clients.columns[0], #cod_agente
                     left_on= new_base.columns[0], #cod_agente
                     how="left"
                 )[[*months_cols, "status"]]
@@ -247,9 +254,6 @@ class Cluster(dto.DataFrameOptimized):
                 ]
                 new_base[["prom_ant_pesos", "prom_act_pesos"]] = results[0].get()
                 new_base[["prom_ant_kilos", "prom_act_kilos"]] = results[1].get()
-
-                if feature_flags.ENVIROMENT == "DEV":
-                    new_base[new_base.columns[0]] = np.vectorize(func.mask_number)(new_base[new_base.columns[0]].astype(str)) #cod_cliente
 
                 #merge with principal table
                 res_base = table_general.merge(
@@ -285,24 +289,32 @@ class Cluster(dto.DataFrameOptimized):
                     how="left"
                 )
 
+                if feature_flags.ENVIROMENT == "DEV":
+                    new_base[new_base.columns[0]] = np.vectorize(func.mask_number)(new_base[new_base.columns[0]].astype(str)) #cod_agente
+                    new_base[new_base.columns[1]] = np.vectorize(func.mask_number)(new_base[new_base.columns[1]].astype(str)) #cod_ecom
+
                 cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
                 cols_kilos = sorted([col for col in new_base.columns.tolist() if "venta_kilos" in col.lower()], key=lambda x: func.mask_number(x))
 
-
+                #group by "cod_agente", "cod_ecom" and "marca"
+                new_base = new_base.groupby(new_base.columns[:3].tolist(), as_index=False).agg({
+                        f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
+                })
                 new_base[[*cols_pesos, *cols_kilos]] = new_base[[*cols_pesos, *cols_kilos]].fillna(0)
 
-                #group by "cliente"
-                base_clients = new_base.groupby([new_base.columns.tolist()[0]], as_index=False).agg({
+                #group by "agente"
+                base_agents = new_base.groupby([new_base.columns.tolist()[0]], as_index=False).agg({
                     f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
                 })
-                
+                general_bases.append(base_agents)
+
                 #get active months
                 months_cols = ["meses_ant_activos", "meses_act_activos"]
-                base_clients[[*months_cols, "status"]] = base_clients[cols_pesos].apply(lambda row: self.get_active_months(row, lots), axis=1).tolist()
+                base_agents[[*months_cols, "status"]] = base_agents[cols_pesos].apply(lambda row: self.get_active_months(row, lots), axis=1).tolist()
 
                 new_base[[*months_cols, "status"]] = new_base.merge(
-                    right=base_clients[[base_clients.columns[0], *months_cols, "status"]], 
-                    right_on=base_clients.columns[0], #cod_cliente
+                    right=base_agents[[base_agents.columns[0], *months_cols, "status"]], 
+                    right_on=base_agents.columns[0], #cod_cliente
                     left_on= new_base.columns[0], #cod_cliente
                     how="left"
                 )[[*months_cols, "status"]]
@@ -315,10 +327,6 @@ class Cluster(dto.DataFrameOptimized):
 
                 new_base[["prom_ant_pesos", "prom_act_pesos"]] = results[0].get()
                 new_base[["prom_ant_kilos", "prom_act_kilos"]] = results[1].get()
-
-                if feature_flags.ENVIROMENT == "DEV":
-                    new_base[new_base.columns[0]] = np.vectorize(func.mask_number)(new_base[new_base.columns[0]].astype(str)) #cod_agente
-                    new_base[new_base.columns[1]] = np.vectorize(func.mask_number)(new_base[new_base.columns[1]].astype(str)) #cod_ecom
 
                 #merge with principal table
                 res_base = table_general.merge(
@@ -333,14 +341,13 @@ class Cluster(dto.DataFrameOptimized):
                 )
         
 
-        self.table = self.combine_columns(
+        more_sales = self.combine_columns(
             data=bases, 
             suffixes=("_x", "_y"),
             on=columns_general[:3], # merge by cod_cliente, cod_loc and cod_ecom
             how="left")
         
         #get brands with more sales
-        more_sales = self.table
         more_sales["total_pesos"] = more_sales[cols_pesos].sum(axis=1)
         brands_with_more_sales = more_sales.groupby(["marca"], as_index=False).agg({
                     "total_pesos": "sum"
@@ -353,9 +360,20 @@ class Cluster(dto.DataFrameOptimized):
         more_sales_pivot.columns = columns_more_sales
         more_sales_pivot.reset_index(inplace=True)
 
-        self.table = self.table.merge(
+        #merge result with principal bases
+        group_clients = self.table.merge(
+            right=general_bases[0], 
+            on=general_bases[0].columns.tolist()[0], # merge by cod_cliente
+            how="left"
+        )
+        self.table = self.combine_columns(
+            data=(group_clients, general_bases[1]), 
+            suffixes=("_x", "_y"),
+            on=general_bases[1].columns.tolist()[:2], # merge by cod_agente and cod_ecom
+            how="left"    
+        ).merge(
             right=more_sales_pivot, 
-            on=more_sales_pivot.columns.tolist()[0], # merge by cod_cliente
+            on=more_sales_pivot.columns.tolist()[0], # merge with brands
             how="left"
         )
 
