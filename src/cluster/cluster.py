@@ -52,9 +52,8 @@ class Cluster(dto.DataFrameOptimized):
         mask_directa = ((mask_client | mask_loc) & ~mask_isindirecta)
         mask_indirecta = ((mask_client & mask_agent) & mask_isindirecta)
 
-        base["socios"] = False
-
-        base.loc[(mask_directa | mask_indirecta), "socios"] = True 
+        base["socios"] = "no"
+        base.loc[(mask_directa | mask_indirecta), "socios"] = "si" 
         
         #convert into number 
         if feature_flags.ENVIROMENT == "DEV":
@@ -62,7 +61,26 @@ class Cluster(dto.DataFrameOptimized):
             base[columns[1]] = np.vectorize(func.mask_number)(base[columns[1]].astype(str)) #cod_loc
             base[columns[2]] = np.vectorize(func.mask_number)(base[columns[2]].astype(str)) #cod_agente
 
-        self.table = base[[*columns[:3], "socios"]]
+
+        base_indi = self.table[self.table["atencion"] == "Indirecta"]
+        base_dir = self.table[self.table["atencion"] == "Directa"]
+        
+        dir_merge = pd.concat([base_dir.dropna(subset=[columns[0]]).merge(base[[columns[0], "socios"]].drop_duplicates(), on=columns[0], how="left"),
+                    base_dir.dropna(subset=[columns[0]]).merge(base[[columns[1], "socios"]].drop_duplicates(), left_on=columns[0], right_on=columns[1], how="left")],
+                    axis=0, ignore_index=True).drop_duplicates()
+        #delete column "cod_loc"
+        dir_merge.drop(columns[1], axis=1, inplace=True)
+
+        #cod_cliente, cod_ac
+        indi_merge = base_indi.dropna(subset=[columns[0], columns[2]]).merge(base[[columns[0], columns[2], "socios"]].drop_duplicates(), on=[columns[0], columns[2]], how="left")
+
+        new_base = pd.concat((dir_merge, indi_merge), axis=0, ignore_index=True)
+
+        partners_not_found = pd.isna(new_base["socios"]) 
+        new_base.loc[partners_not_found, "socios"] = "no"
+        new_base.drop_duplicates(inplace=True)
+
+        self.table = new_base
 
     def process_base_coords(self, base_coords: dto.DataFrameOptimized) -> None:
         """Process base of coords
@@ -87,21 +105,24 @@ class Cluster(dto.DataFrameOptimized):
         #convert into number 
         if feature_flags.ENVIROMENT == "DEV":
             table_coords[columns_coords[0]] = np.vectorize(func.mask_number)(table_coords[columns_coords[0]].astype(str)) #cod_cliente
-            table_coords[columns_coords[3]] = np.vectorize(func.mask_number)(table_coords[columns_coords[3]].astype(str)) #cod_loc
-            table_coords[columns_coords[4]] = np.vectorize(func.mask_number)(table_coords[columns_coords[4]].astype(str)) #cod_agente
+            # table_coords[columns_coords[3]] = np.vectorize(func.mask_number)(table_coords[columns_coords[3]].astype(str)) #cod_loc
+            table_coords[columns_coords[3]] = np.vectorize(func.mask_number)(table_coords[columns_coords[3]].astype(str)) #cod_agente
+            table_coords[columns_coords[4]] = np.vectorize(func.mask_number)(table_coords[columns_coords[4]].astype(str)) #cod_ecom
 
+        cols_merge_indi = ["cod_agente", "cod_ecom"]
         coords_indirecta = table_general.merge(
-            right=table_coords[columns_coords[1:]],
-            right_on=[columns_coords[3], columns_coords[4]], #agente y codigo ecom
-            left_on= [columns_general[2], columns_general[0]], #agente y cod_cliente (ecom)
+            right=table_coords[columns_coords[1:]].drop_duplicates(subset=cols_merge_indi),
+            right_on=cols_merge_indi, #cod_agente y codigo ecom
+            left_on=["cod_agente", "cod_cliente"], #cod_agente y cod_cliente (ecom)
             how="left"
         )
 
         #delete "cod_ecom" column
         coords_indirecta.drop(columns_coords[4], axis = 1, inplace = True) 
 
+
         coords_directa = table_general.merge(
-            right=table_coords[[columns_coords[0], *columns_coords[1:3]]], #cod_cliente, ...coords
+            right=table_coords[[columns_coords[0], *columns_coords[1:3]]].drop_duplicates(subset=columns_coords[0]), #cod_cliente, ...coords
             right_on=columns_coords[0], #cod_cliente
             left_on= columns_general[0], #cod_cliente
             how="left"
@@ -121,8 +142,6 @@ class Cluster(dto.DataFrameOptimized):
             types (list): [description]
         """
         bases = []
-        columns_general = self.table.columns.to_list()
-        table_general = self.table
 
         for base, type in zip(bases_universe, types):
             table_universe = base.table
@@ -133,30 +152,26 @@ class Cluster(dto.DataFrameOptimized):
                 if feature_flags.ENVIROMENT == "DEV":
                     table_universe[columns_universe[0]] = np.vectorize(func.mask_number)(table_universe[columns_universe[0]].astype(str)) #cod_cliente
 
-                res_base = table_general.merge(
-                    right=table_universe, #cod_cliente, ...coords
-                    right_on=columns_universe[0], #cod_cliente
-                    left_on= columns_general[0], #cod_cliente
-                    how="left"
-                )
-
                 #delete not found
-                found = ~pd.isna(res_base[columns_universe[1:]]).all(axis=1)
+                found = ~pd.isna(table_universe[columns_universe[1:]]).all(axis=1)
 
-                res_base = res_base[found]
+                res_base = table_universe[found]
 
                 #get repeated "vendedores"
-                mask_repeated = res_base.duplicated(subset=columns_general[0], keep='first')
+                mask_repeated = res_base.duplicated(subset=columns_universe[0], keep='first')
                 base_duplicated = res_base[mask_repeated].rename(columns={f"{columns_universe[2]}": f"{columns_universe[2]}_2", f"{columns_universe[3]}": f"{columns_universe[3]}_2"})
                 columns_duplicated = base_duplicated.columns.to_list()
 
                 #add the repeated "vendedores"
                 new_base = res_base[~mask_repeated].merge(
                     right=base_duplicated[[columns_duplicated[0], f"{columns_universe[2]}_2", f"{columns_universe[3]}_2"]], 
-                    right_on=columns_duplicated[0], #cod_cliente
-                    left_on= columns_general[0], #cod_cliente
+                    on= columns_universe[0], #cod_cliente
                     how="left"
                 )
+                new_base.drop_duplicates(inplace=True)
+
+                #add type of "atencion"
+                new_base["atencion"] = "Directa"
 
                 bases.append(
                     new_base
@@ -165,24 +180,23 @@ class Cluster(dto.DataFrameOptimized):
                 
                 #convert into number
                 if feature_flags.ENVIROMENT == "DEV":
-                    table_universe[columns_universe[2]] = np.vectorize(func.mask_number)(table_universe[columns_universe[2]].astype(str)) #cod_jefe
+                    table_universe[columns_universe[0]] = np.vectorize(func.mask_number)(table_universe[columns_universe[0]].astype(str)) #cod_agente
 
-                res_base = table_general.merge(
-                    right=table_universe, #cod_cliente, ...coords
-                    right_on=columns_universe[2], #cod_jefe
-                    left_on= columns_general[0], #cod_cliente
-                    how="left"
-                )
+                #create columns "cod_jefe" and "jefe" with "cod_agente" and "agente"
+                table_universe[["cod_jefe", "jefe"]] = table_universe[columns_universe[:2]]
+                table_universe.drop_duplicates(inplace=True)
+
+                #add type of "atencion"
+                table_universe["atencion"] = "Indirecta"
+
+                #create empty columns 
+                table_universe[utils.get_diff_list((bases[0].columns.tolist(), table_universe.columns.tolist()), "left")] = np.nan
 
                 bases.append(
-                    res_base
+                    table_universe
                 )
 
-        self.table = self.combine_columns(
-            data=bases, 
-            suffixes=("_x", "_y"),
-            on=columns_general[:3], # merge by cod_cliente, cod_loc and cod_ecom
-            how="left")
+        self.table = pd.concat(bases, ignore_index=True, axis=0)
 
     async def process_bases_query(self, bases_query: 'list(list[dto.DataFrameOptimized])', types: 'list(str)', lots: int = 6) -> None:
         ""
@@ -230,30 +244,30 @@ class Cluster(dto.DataFrameOptimized):
                 #remove nan values
                 new_base[[*cols_pesos, *cols_kilos]] = new_base[[*cols_pesos, *cols_kilos]].fillna(0)
 
-                #group by "cliente"
-                base_clients = new_base.groupby(new_base.columns.tolist()[0], as_index=False).agg({
-                    f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
-                })
-                general_bases.append(base_clients)
+                # #group by "cliente"
+                # base_clients = new_base.groupby(new_base.columns.tolist()[0], as_index=False).agg({
+                #     f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
+                # })
+                # general_bases.append(base_clients)
 
-                #get active months
-                months_cols = ["meses_ant_activos", "meses_act_activos"]
-                base_clients[[*months_cols, "status"]] = np.apply_along_axis(lambda row: self.get_active_months(row, lots), 1, base_clients[cols_pesos].values)
+                # #get active months
+                # months_cols = ["meses_ant_activos", "meses_act_activos"]
+                # base_clients[[*months_cols, "status"]] = np.apply_along_axis(lambda row: self.get_active_months(row, lots), 1, base_clients[["cod_cliente", *cols_pesos]].values)
 
-                new_base[[*months_cols, "status"]] = new_base.merge(
-                    right=base_clients[[base_clients.columns[0], *months_cols, "status"]], 
-                    right_on=base_clients.columns[0], #cod_agente
-                    left_on= new_base.columns[0], #cod_agente
-                    how="left"
-                )[[*months_cols, "status"]]
+                # new_base[[*months_cols, "status"]] = new_base.merge(
+                #     right=base_clients[[base_clients.columns[0], *months_cols, "status"]], 
+                #     right_on=base_clients.columns[0], #cod_cliente
+                #     left_on= new_base.columns[0], #cod_cliente
+                #     how="left"
+                # )[[*months_cols, "status"]]
 
                 #get prom of sales
                 pool = ThreadPool(processes=2)
-                results = [pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_pesos, *months_cols]].values), ()),
-                            pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values), ())
+                results = [pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, length_months=2), 1, new_base[cols_pesos].values), ()),
+                            pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, length_months=2), 1, new_base[cols_kilos].values), ())
                 ]
-                new_base[["prom_ant_pesos", "prom_act_pesos"]] = results[0].get()
-                new_base[["prom_ant_kilos", "prom_act_kilos"]] = results[1].get()
+                new_base[["meses_ant_activos", "meses_act_activos", "prom_ant_pesos", "prom_act_pesos", "status"]] = results[0].get()
+                new_base[["meses_ant_activos", "meses_act_activos","prom_ant_kilos", "prom_act_kilos", "status"]] = results[1].get()
 
                 #merge with principal table
                 res_base = table_general.merge(
@@ -408,6 +422,7 @@ class Cluster(dto.DataFrameOptimized):
             "Dejo de comprar", 
             "Sigue comprando"
         ]
+
         group_old = np.array(row_values[:len(row_values)-(lots*2)], dtype=np.float64)
         group_ant = np.array(row_values[len(row_values)-(lots*2):len(row_values)-lots], dtype=np.float64)
         group_act = np.array(row_values[len(row_values)-lots:], dtype=np.float64)
@@ -449,7 +464,7 @@ class Cluster(dto.DataFrameOptimized):
 
         return end_moth_ant, end_moth_act, status
 
-    def get_average(self, row_values: pd.Series, lots: int, cols_months: list[str]) -> 'tuple(float, float)':
+    def get_average(self, row_values: pd.Series, lots: int, length_months: list[str]) -> 'tuple(float, float)':
         """get average of rows with values
 
             first split the row with lots of months, then validate if months active has a number and make the formula
@@ -457,19 +472,44 @@ class Cluster(dto.DataFrameOptimized):
         Returns:
             tuple(float, float): result of average
         """
-        len_without_months = len(row_values)-len(cols_months)
-        months = np.array(row_values[len_without_months:], dtype=np.float64) #ant, act
-        group_act = np.array(row_values[len_without_months-lots:len_without_months], dtype=np.float64)
-        group_ant = np.array(row_values[len_without_months-(lots*2):len_without_months-lots], dtype=np.float64)
-
-        prom_ant, prom_act = 0, 0
-        if months[0] != 0 and months[0] != np.nan:
-            prom_ant = np.sum(group_ant)/months[0]
         
-        if months[1] != 0 and months[1] != np.nan:
-            prom_act = np.sum(group_act)/months[1]
+        group_ant = np.array(row_values[len(row_values)-(lots*2):len(row_values)-lots], dtype=np.float64)
+        group_act = np.array(row_values[len(row_values)-lots:], dtype=np.float64)
 
-        return prom_ant, prom_act
+        end_moth_ant, end_moth_act, status = self.get_active_months(row_values, lots)
+        prom_ant, prom_act = 0, 0
+
+        if end_moth_ant != 0 and end_moth_ant != np.nan:
+            prom_ant = np.sum(group_ant)/end_moth_ant
+        
+        if end_moth_act != 0 and end_moth_act != np.nan:
+            prom_act = np.sum(group_act)/end_moth_act
+
+        return end_moth_ant, end_moth_act, prom_ant, prom_act, status
+
+    def calcular_meses_actividad(data, anio):
+        temp = data[data['anio']==anio]
+        temp = temp.pivot_table(index=['nit_agrupador'], columns='mes',
+                                    values='venta', aggfunc='sum').reset_index()
+        temp = temp.fillna(0)
+        a = temp.iloc[:,1:13].values > 0
+        temp['inicio'+anio] = np.where(a.any(1), np.argmax(a,axis=1)+1, 0)
+        temp['fin'+anio] = np.where(np.fliplr(a).any(1), 12-np.argmax(np.fliplr(a),axis=1), 0)
+
+        anio_sig = str(int(anio)+1)
+        anio_ant = str(int(anio)-1)
+
+        temp_sig = list(data[(data['anio']==anio_sig) & (data['venta']>0  )]['nit_agrupador'].unique())
+        temp_ant = list(data[(data['anio']==anio_ant) & (data['venta']>0  )]['nit_agrupador'].unique())
+        print(1)
+        temp['anterior'] = temp['nit_agrupador'].isin(temp_ant)
+        temp['siguiente'] = temp['nit_agrupador'].isin(temp_sig)
+        temp['inicio'+anio] = temp.apply(lambda x: 1 if x['anterior']  else x['inicio'+anio],axis=1)
+
+        temp['fin'+anio] = temp.apply(lambda x: 12 if x['siguiente']   else x['fin'+anio],
+                                axis=1)
+
+        return temp
 
     async def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', order: 'list[str]'):
         """Merge all bases

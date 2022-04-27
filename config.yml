@@ -66,18 +66,21 @@ sources:
           sheet: BD
           skiprows: 1
           encoding: latin-1
-          columns: 
+          columns:
+              - column: cod_agente
+                pos: 2 
+              - column: agente
+                pos: 5 
+              - column: cod_cliente
+                pos: 7 
               - column: direccion
                 pos: 14
               - column: subcanal
-                pos: 23
-              - column: cod_jefe
-                pos: 35
-              - column: jefe
-                pos: 36
+                pos: 28
           converters:
+              cod_agente: number
+              cod_cliente: number
               subcanal: number
-              cod_jefe: number
     base_consulta_directa:
           type: folder
           sheet: 0
@@ -130,10 +133,10 @@ sources:
               venta_pesos: number
               venta_kilos: number
 order_base:
-  - base_socios
-  - base_coordenadas
   - base_universo_directa
   - base_universo_indirecta
+  - base_socios
+  - base_coordenadas
   - base_consulta_directa
   - base_consulta_indirecta
 final_base:
