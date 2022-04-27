@@ -45,6 +45,8 @@ sources:
         columns: 
             - column: cod_cliente
               pos: 2
+            - column: nom_cliente
+              pos: 5
             - column: direccion
               pos: 10
             - column: cod_vendedor
@@ -70,7 +72,7 @@ sources:
               - column: cod_agente
                 pos: 2 
               - column: agente
-                pos: 5 
+                pos: 3 
               - column: cod_cliente
                 pos: 7 
               - column: direccion
@@ -142,39 +144,39 @@ order_base:
 final_base:
     - cod_cliente
     - nom_cliente
-    - mod_atencion
+    - atencion
     - direccion
     - subcanal
-    - cod_vendedor_dir_1
-    - vendedor_dir_1
-    - cod_vendedor_dir_2
-    - vendedor_dir_2
+    - cod_vendedor
+    - vendedor
+    - cod_vendedor_2
+    - vendedor_2
     - cod_jefe
     - jefe
     - socio
     - latitud
     - longitud
-    - ventas_ant_kg
-    - ventas_act_kg
-    - ventas_ant_marca1_kg
-    - ventas_act_marca1_kg
-    - ventas_ant_marca2_kg
-    - ventas_act_marca2_kg
-    - ventas_ant_marca3_kg
-    - ventas_act_marca3_kg
-    - ventas_ant_marca4_kg
-    - ventas_act_marca4_kg
-    - status_marca1
-    - status_marca1
-    - status_marca1
-    - status_marca1
-    - ventas_ant_pes
-    - ventas_act_pes
-    - ventas_ant_marca1_pes
-    - ventas_act_marca1_pes
-    - ventas_ant_marca2_pes
-    - ventas_act_marca2_pes
-    - ventas_ant_marca3_pes
-    - ventas_act_marca3_pes
-    - ventas_ant_marca4_pes
-    - ventas_act_marca4_pes
+    - ventas_ant_kilos
+    - ventas_act_kilos
+    - ventas_ant_kilos_marca_1
+    - ventas_act_kilos_marca_1
+    - ventas_ant_kilos_marca_2
+    - ventas_act_kilos_marca_2
+    - ventas_ant_kilos_marca_3
+    - ventas_act_kilos_marca_3
+    - ventas_ant_kilos_marca_4
+    - ventas_act_kilos_marca_4
+    - status_marca_1
+    - status_marca_2
+    - status_marca_3
+    - status_marca_4
+    - ventas_ant_pesos
+    - ventas_act_pesos
+    - ventas_ant_pesos_marca_1
+    - ventas_act_pesos_marca_1
+    - ventas_ant_pesos_marca_2
+    - ventas_act_pesos_marca_2
+    - ventas_ant_pesos_marca_3
+    - ventas_act_pesos_marca_3
+    - ventas_ant_pesos_marca_4
+    - ventas_act_pesos_marca_4

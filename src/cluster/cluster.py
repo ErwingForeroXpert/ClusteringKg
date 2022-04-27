@@ -67,12 +67,14 @@ class Cluster(dto.DataFrameOptimized):
         
         dir_merge = pd.concat([base_dir.dropna(subset=[columns[0]]).merge(base[[columns[0], "socios"]].drop_duplicates(), on=columns[0], how="left"),
                     base_dir.dropna(subset=[columns[0]]).merge(base[[columns[1], "socios"]].drop_duplicates(), left_on=columns[0], right_on=columns[1], how="left")],
-                    axis=0, ignore_index=True).drop_duplicates()
+                    axis=0, ignore_index=True).drop_duplicates(subset=columns[:2])
+
         #delete column "cod_loc"
         dir_merge.drop(columns[1], axis=1, inplace=True)
 
         #cod_cliente, cod_ac
-        indi_merge = base_indi.dropna(subset=[columns[0], columns[2]]).merge(base[[columns[0], columns[2], "socios"]].drop_duplicates(), on=[columns[0], columns[2]], how="left")
+        indi_merge = base_indi.dropna(subset=[columns[0], columns[2]]).merge(base[[columns[0], columns[2], "socios"]].drop_duplicates(), on=[columns[0], columns[2]], how="left")\
+            .drop_duplicates(subset=[columns[0], columns[2]])
 
         new_base = pd.concat((dir_merge, indi_merge), axis=0, ignore_index=True)
 
@@ -244,38 +246,48 @@ class Cluster(dto.DataFrameOptimized):
                 #remove nan values
                 new_base[[*cols_pesos, *cols_kilos]] = new_base[[*cols_pesos, *cols_kilos]].fillna(0)
 
-                # #group by "cliente"
-                # base_clients = new_base.groupby(new_base.columns.tolist()[0], as_index=False).agg({
-                #     f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
-                # })
-                # general_bases.append(base_clients)
+                #group by "cliente"
+                base_clients = new_base.groupby(new_base.columns.tolist()[0], as_index=False).agg({
+                    f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
+                })
+                general_bases.append(base_clients)
 
-                # #get active months
-                # months_cols = ["meses_ant_activos", "meses_act_activos"]
-                # base_clients[[*months_cols, "status"]] = np.apply_along_axis(lambda row: self.get_active_months(row, lots), 1, base_clients[["cod_cliente", *cols_pesos]].values)
+                #get active months
+                months_cols = ["meses_ant_activos", "meses_act_activos"]
+                base_clients[months_cols] = np.apply_along_axis(lambda row: self.get_active_months(row, lots), 1, base_clients[cols_pesos].values)
 
-                # new_base[[*months_cols, "status"]] = new_base.merge(
-                #     right=base_clients[[base_clients.columns[0], *months_cols, "status"]], 
-                #     right_on=base_clients.columns[0], #cod_cliente
-                #     left_on= new_base.columns[0], #cod_cliente
-                #     how="left"
-                # )[[*months_cols, "status"]]
+                new_base[months_cols] = new_base.merge(
+                    right=base_clients[[base_clients.columns[0], *months_cols]], 
+                    right_on=base_clients.columns[0], #cod_cliente
+                    left_on= new_base.columns[0], #cod_cliente
+                    how="left"
+                )[months_cols]
 
                 #get prom of sales
                 pool = ThreadPool(processes=2)
-                results = [pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, length_months=2), 1, new_base[cols_pesos].values), ()),
-                            pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, length_months=2), 1, new_base[cols_kilos].values), ())
+                results = [pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_pesos, *months_cols]].values), ()),
+                            pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values), ())
                 ]
-                new_base[["meses_ant_activos", "meses_act_activos", "prom_ant_pesos", "prom_act_pesos", "status"]] = results[0].get()
-                new_base[["meses_ant_activos", "meses_act_activos","prom_ant_kilos", "prom_act_kilos", "status"]] = results[1].get()
+
+                new_base[["prom_ant_pesos", "prom_act_pesos", "status"]] = results[0].get()
+                new_base[["prom_ant_kilos", "prom_act_kilos", "status"]] = results[1].get()
+                pool.close()
+
+                #drop empty registers
+                new_base.dropna(thresh=new_base.shape[1]-2, inplace=True) # -2 omit "cod_cliente" and "marca"
 
                 #merge with principal table
-                res_base = table_general.merge(
+                only_direct = table_general["atencion"] == "Directa"
+                res_base = table_general.loc[only_direct].merge(
                     right=new_base, #cod_cliente, ...coords
                     right_on=new_base.columns[0], #cod_cliente
                     left_on= columns_general[0], #cod_cliente
                     how="left"
                 )
+
+                #get only required columns
+                only_cols_required = [col for col in res_base.columns if col not in cols_pesos and col not in cols_kilos]
+                res_base = res_base[only_cols_required]
 
                 bases.append(
                     res_base
@@ -310,28 +322,30 @@ class Cluster(dto.DataFrameOptimized):
                 cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
                 cols_kilos = sorted([col for col in new_base.columns.tolist() if "venta_kilos" in col.lower()], key=lambda x: func.mask_number(x))
 
-                #group by "cod_agente", "cod_ecom" and "marca"
-                new_base = new_base.groupby(new_base.columns[:3].tolist(), as_index=False).agg({
-                        f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
-                })
+                # delete
+                # #group by "cod_agente", "cod_ecom" and "marca"
+                # new_base = new_base.groupby(new_base.columns[:3].tolist(), as_index=False).agg({
+                #         f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
+                # })
+
                 new_base[[*cols_pesos, *cols_kilos]] = new_base[[*cols_pesos, *cols_kilos]].fillna(0)
 
                 #group by "agente"
-                base_agents = new_base.groupby([new_base.columns.tolist()[0]], as_index=False).agg({
+                base_agents = new_base.groupby(new_base.columns[:2].tolist(), as_index=False).agg({
                     f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
                 })
                 general_bases.append(base_agents)
 
                 #get active months
                 months_cols = ["meses_ant_activos", "meses_act_activos"]
-                base_agents[[*months_cols, "status"]] = base_agents[cols_pesos].apply(lambda row: self.get_active_months(row, lots), axis=1).tolist()
+                base_agents[months_cols] = base_agents[cols_pesos].apply(lambda row: self.get_active_months(row, lots), axis=1).tolist()
 
-                new_base[[*months_cols, "status"]] = new_base.merge(
-                    right=base_agents[[base_agents.columns[0], *months_cols, "status"]], 
-                    right_on=base_agents.columns[0], #cod_cliente
-                    left_on= new_base.columns[0], #cod_cliente
+                new_base[months_cols] = new_base.merge(
+                    right=base_agents[[*base_agents.columns[:2], *months_cols]], 
+                    right_on=base_agents.columns[:2].tolist(), #cod_agente, cod_ecom
+                    left_on= new_base.columns[:2].tolist(), #cod_agente, cod_ecom
                     how="left"
-                )[[*months_cols, "status"]]
+                )[months_cols]
 
                 #get prom of sales
                 pool = ThreadPool(processes=2)
@@ -339,67 +353,114 @@ class Cluster(dto.DataFrameOptimized):
                             pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values), ())
                 ]
 
-                new_base[["prom_ant_pesos", "prom_act_pesos"]] = results[0].get()
-                new_base[["prom_ant_kilos", "prom_act_kilos"]] = results[1].get()
+                new_base[["prom_ant_pesos", "prom_act_pesos", "status"]] = results[0].get()
+                new_base[["prom_ant_kilos", "prom_act_kilos", "status"]] = results[1].get()
+                pool.close()
+
+                #drop empty registers
+                new_base.dropna(thresh=new_base.shape[1]-3, inplace=True) # -3 omit "cod_agente", "cod_ecom" and "marca"
 
                 #merge with principal table
-                res_base = table_general.merge(
+                only_indir = table_general["atencion"] == "Indirecta"
+                res_base = table_general.loc[only_indir].merge(
                     right=new_base, 
-                    right_on= new_base.columns.tolist()[:2], #cod_agente, cod_ecom
-                    left_on= [columns_general[2], columns_general[0]], #cod_agente, cod_cliente (ecom)
+                    right_on= new_base.columns[:2].tolist(), #cod_agente, cod_ecom
+                    left_on= ["cod_agente", "cod_cliente"], #cod_agente, cod_cliente (ecom)
                     how="left"
                 )
+
+                #get only required columns
+                only_cols_required = [col for col in res_base.columns if col not in cols_pesos and col not in cols_kilos]
+                res_base = res_base[only_cols_required]
 
                 bases.append(
                     res_base
                 )
         
 
-        more_sales = self.combine_columns(
-            data=bases, 
-            suffixes=("_x", "_y"),
-            on=columns_general[:3], # merge by cod_cliente, cod_loc and cod_ecom
-            how="left")
+        more_sales = pd.concat(bases, axis=0, ignore_index=True).drop_duplicates()
         
         #get brands with more sales
-        more_sales["total_pesos"] = more_sales[cols_pesos].sum(axis=1)
+        more_sales["total_pesos"] = more_sales[['prom_act_pesos']].sum(axis=1)
         brands_with_more_sales = more_sales.groupby(["marca"], as_index=False).agg({
-                    "total_pesos": "sum"
-                }).sort_values(by=["total_pesos"], ascending=False).iloc[:4]["marca"].tolist()
+            "total_pesos": "sum"
+        }).sort_values(by=["total_pesos"], ascending=False).iloc[:4]["marca"].tolist()
         
-        #filter only for brands with more sales
-        more_sales_pivot = more_sales[more_sales["marca"].isin(brands_with_more_sales)].drop_duplicates(["cod_cliente", "marca"]).pivot(index=["cod_cliente"], columns="marca", \
-            values=["prom_ant_pesos", "prom_act_pesos", "prom_ant_kilos", "prom_act_kilos", "status"])
-        columns_more_sales = ["_".join(map(str, cols)) for cols in more_sales_pivot.columns]
-        more_sales_pivot.columns = columns_more_sales
-        more_sales_pivot.reset_index(inplace=True)
 
-        #merge result with principal bases
+        #filter only for brands with more sales "directa"
+        values_merge = ["prom_ant_pesos", "prom_act_pesos", "prom_ant_kilos", "prom_act_kilos", "status"]
+        sales_dir = bases[0][bases[0]["marca"].isin(brands_with_more_sales)].drop_duplicates(["cod_cliente", "marca"]).pivot(index=["cod_cliente"], columns="marca", \
+            values=values_merge)
+        sales_dir.columns = [F"{cols[0]}_marca_{brands_with_more_sales.index(cols[1])+1}" for cols in sales_dir.columns]
+        sales_dir.reset_index(inplace=True)
+
+        #filter only for brands with more sales "indirecta"
+        sales_indir = bases[1][bases[1]["marca"].isin(brands_with_more_sales)].drop_duplicates(["cod_cliente", "cod_agente", "marca"]).pivot(index=["cod_cliente", "cod_agente"], \
+            columns="marca", values=values_merge)
+        sales_indir.columns = [F"{cols[0]}_marca_{brands_with_more_sales.index(cols[1])+1}" for cols in sales_indir.columns]
+        sales_indir.reset_index(inplace=True)
+
+        #merge sales result
+        clients_base, agents_base = general_bases
+        clients_base = clients_base[["cod_cliente", "meses_ant_activos", "meses_act_activos"]].drop_duplicates(["cod_cliente", "meses_ant_activos", "meses_act_activos"]).merge(
+            right=sales_dir, 
+            on=["cod_cliente"], 
+            how="left"
+        )
+        
+        agents_base.rename(columns={"cod_ecom":"cod_cliente"}, inplace=True)#change the column name only for merge
+        agents_base = agents_base[["cod_cliente", "cod_agente", "meses_ant_activos", "meses_act_activos"]].drop_duplicates(["cod_cliente", "cod_agente", "meses_ant_activos", "meses_act_activos"]).merge(
+            right=sales_indir, 
+            on=["cod_cliente", "cod_agente"], 
+            how="left"
+        )
+
+        #merge active months and sales of "clientes"
         group_clients = self.table.merge(
-            right=general_bases[0], 
-            on=general_bases[0].columns.tolist()[0], # merge by cod_cliente
-            how="left"
-        )
-        self.table = self.combine_columns(
-            data=(group_clients, general_bases[1]), 
-            suffixes=("_x", "_y"),
-            on=general_bases[1].columns.tolist()[:2], # merge by cod_agente and cod_ecom
-            how="left"    
-        ).merge(
-            right=more_sales_pivot, 
-            on=more_sales_pivot.columns.tolist()[0], # merge with brands
+            right=clients_base, 
+            on=["cod_cliente"], 
             how="left"
         )
 
-    def post_process_base(self):
+        #merge active months and sales of "agentes"
+        self.table = self.combine_columns(
+            data=(group_clients, agents_base), 
+            suffixes=("_x", "_y"),
+            on=["cod_cliente","cod_agente"],
+            how="left"    
+        )
+
+        #delete
+        # #merge result with principal bases
+        # group_clients = self.table.merge(
+        #     right=general_bases[0], 
+        #     on=general_bases[0].columns.tolist()[0], # merge by cod_cliente
+        #     how="left"
+        # )
+
+        # self.table = self.combine_columns(
+        #     data=(group_clients, general_bases[1]), 
+        #     suffixes=("_x", "_y"),
+        #     on=general_bases[1].columns.tolist()[:2], # merge by cod_agente and cod_ecom
+        #     how="left"    
+        # ).merge(
+        #     right=more_sales_pivot, 
+        #     on=more_sales_pivot.columns.tolist()[0], # merge with brands
+        #     how="left"
+        # )
+
+    def post_process_base(self, final_base: list) -> None:
         """Post process final base
         """
         columns = self.table.columns
+
         for idx, _type in enumerate(list(self.table.dtypes)):
             if _type == pd.StringDtype:
-                self.table[columns[idx]] = np.vectorize(func.remove_accents)(self.table[columns[idx]].astype(str))
-        
-    def get_active_months(self, row_values: pd.Series, lots: int, umbral: int = 0.3) -> 'tuple(float, float, str)':
+                self.table[columns[idx]] = np.vectorize(func.remove_accents)(self.table[columns[idx]].fillna("").astype(str))
+
+        self.table = self.table[final_base]
+
+    def get_active_months(self, row_values: pd.Series, lots: int, umbral: int = 0.3) -> 'tuple(float, float)':
         """Get months active based on rules
 
         Args:
@@ -416,12 +477,6 @@ class Cluster(dto.DataFrameOptimized):
         Returns:
             tuple(float, float, str): months active before, months active now, status
         """
-        type_status = [
-            "Nunca ha comprando", 
-            "Empezo a comprar", 
-            "Dejo de comprar", 
-            "Sigue comprando"
-        ]
 
         group_old = np.array(row_values[:len(row_values)-(lots*2)], dtype=np.float64)
         group_ant = np.array(row_values[len(row_values)-(lots*2):len(row_values)-lots], dtype=np.float64)
@@ -432,39 +487,31 @@ class Cluster(dto.DataFrameOptimized):
         old_quantity = (size_old - end_moth_old)/size_old
 
         size_ant = group_ant.size
-        end_moth_ant = size_ant if (v:=np.where(group_ant > 0)[0]).size == 0 else v[0]
-        ant_quantity = (size_ant - end_moth_ant)/size_ant
+        months_ant = size_ant if (v:=np.where(group_ant > 0)[0]).size == 0 else v[0]
+        ant_quantity = (size_ant - months_ant)/size_ant
 
         size_act = group_act.size
-        end_moth_act = size_act if (v:=np.where(group_act > 0)[0]).size == 0 else v[0]
-        act_quantity = (size_act - end_moth_act)/size_act
+        months_act = size_act if (v:=np.where(group_act > 0)[0]).size == 0 else v[0]
+        act_quantity = (size_act - months_act)/size_act
 
         end_moth_act, end_moth_ant = 0, 0
-        status = type_status[0]
 
         if old_quantity > umbral:
-            if ant_quantity > umbral and end_moth_ant <= lots//2:
-                end_moth_ant = (lots-end_moth_ant)
-                status = type_status[2]
-                if act_quantity > umbral and end_moth_act <= lots//2:
-                    status = type_status[3]
+            if ant_quantity > umbral and months_ant <= lots//2:
+                end_moth_ant = (lots-months_ant)
+                if act_quantity > umbral and months_act <= lots//2:
                     end_moth_ant = lots
                     end_moth_act = lots
         else:
-            if ant_quantity > umbral and end_moth_ant <= lots//2:
-                end_moth_ant = (lots-end_moth_ant)
-                if act_quantity > umbral and end_moth_act <= lots//2:
+            if ant_quantity > umbral and months_ant <= lots//2:
+                end_moth_ant = (lots-months_ant)
+                if act_quantity > umbral and months_act <= lots//2:
                     end_moth_ant = lots
                     end_moth_act = lots
-                    status = type_status[3]
-                else:
-                    status = type_status[2]
-            elif act_quantity > umbral and end_moth_act <= lots//2:
-                status = type_status[1]
 
-        return end_moth_ant, end_moth_act, status
+        return end_moth_ant, end_moth_act
 
-    def get_average(self, row_values: pd.Series, lots: int, length_months: list[str]) -> 'tuple(float, float)':
+    def get_average(self, row_values: pd.Series, lots: int, active_months: int) -> 'tuple(float, float, str)':
         """get average of rows with values
 
             first split the row with lots of months, then validate if months active has a number and make the formula
@@ -472,46 +519,35 @@ class Cluster(dto.DataFrameOptimized):
         Returns:
             tuple(float, float): result of average
         """
+
+        type_status = [
+            "Nunca ha comprando", 
+            "Empezo a comprar", 
+            "Dejo de comprar", 
+            "Sigue comprando"
+        ]
+
+        length_without_months = len(row_values) - len(active_months)
+        months_values = np.array(row_values[length_without_months:], dtype=np.float64)
+        group_ant = np.array(row_values[length_without_months-(lots*2):length_without_months-lots], dtype=np.float64)
+        group_act = np.array(row_values[length_without_months-lots:length_without_months], dtype=np.float64)
+
+        prom_ant, prom_act, status = 0, 0, type_status[0]
+
+        if months_values[0] != 0 and months_values[0] != np.nan:
+            prom_ant = np.sum(group_ant)/months_values[0]
+            status = type_status[2]
         
-        group_ant = np.array(row_values[len(row_values)-(lots*2):len(row_values)-lots], dtype=np.float64)
-        group_act = np.array(row_values[len(row_values)-lots:], dtype=np.float64)
+        if months_values[1] != 0 and months_values[1] != np.nan:
+            prom_act = np.sum(group_act)/months_values[1]
+            if prom_ant != 0:
+                status = type_status[3]
+            else:
+                status = type_status[1]
 
-        end_moth_ant, end_moth_act, status = self.get_active_months(row_values, lots)
-        prom_ant, prom_act = 0, 0
+        return prom_ant, prom_act, status
 
-        if end_moth_ant != 0 and end_moth_ant != np.nan:
-            prom_ant = np.sum(group_ant)/end_moth_ant
-        
-        if end_moth_act != 0 and end_moth_act != np.nan:
-            prom_act = np.sum(group_act)/end_moth_act
-
-        return end_moth_ant, end_moth_act, prom_ant, prom_act, status
-
-    def calcular_meses_actividad(data, anio):
-        temp = data[data['anio']==anio]
-        temp = temp.pivot_table(index=['nit_agrupador'], columns='mes',
-                                    values='venta', aggfunc='sum').reset_index()
-        temp = temp.fillna(0)
-        a = temp.iloc[:,1:13].values > 0
-        temp['inicio'+anio] = np.where(a.any(1), np.argmax(a,axis=1)+1, 0)
-        temp['fin'+anio] = np.where(np.fliplr(a).any(1), 12-np.argmax(np.fliplr(a),axis=1), 0)
-
-        anio_sig = str(int(anio)+1)
-        anio_ant = str(int(anio)-1)
-
-        temp_sig = list(data[(data['anio']==anio_sig) & (data['venta']>0  )]['nit_agrupador'].unique())
-        temp_ant = list(data[(data['anio']==anio_ant) & (data['venta']>0  )]['nit_agrupador'].unique())
-        print(1)
-        temp['anterior'] = temp['nit_agrupador'].isin(temp_ant)
-        temp['siguiente'] = temp['nit_agrupador'].isin(temp_sig)
-        temp['inicio'+anio] = temp.apply(lambda x: 1 if x['anterior']  else x['inicio'+anio],axis=1)
-
-        temp['fin'+anio] = temp.apply(lambda x: 12 if x['siguiente']   else x['fin'+anio],
-                                axis=1)
-
-        return temp
-
-    async def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', order: 'list[str]'):
+    async def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', properties: dict) -> None:
         """Merge all bases
 
         Args:
@@ -520,6 +556,8 @@ class Cluster(dto.DataFrameOptimized):
         """
         pair_bases = []
         pbar = tqdm(total=5)
+        order = properties["order_base"]
+
         for key in order:
             if "socios" in key.lower():
                 pbar.write(f'procesando la base de socios...')
@@ -551,7 +589,7 @@ class Cluster(dto.DataFrameOptimized):
                 pbar.update(1)
 
         pbar.write(f'post procesando base...')     
-        self.post_process_base()
+        self.post_process_base(properties)
         pbar.update(1)
         pbar.close()
 

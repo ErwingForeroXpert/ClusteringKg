@@ -98,7 +98,7 @@ bases = loop.run_until_complete(get_bases(sources, files_found, cached_data=True
 
 final_base = Cluster()
 with cProfile.Profile() as pr:
-    loop.run_until_complete(final_base.merge_all(bases, config["order_base"]))
+    loop.run_until_complete(final_base.merge_all(bases, config))
 
 stats = pstats.Stats(pr)
 stats.sort_stats(pstats.SortKey.TIME)
