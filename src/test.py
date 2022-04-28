@@ -93,7 +93,7 @@ sources = config["sources"]
 #actual event loop
 loop = asyncio.get_event_loop()
 
-# loop.run_until_complete(get_bases({'base_universo_indirecta':sources['base_universo_indirecta']}, files_found, cached_data=False))
+# loop.run_until_complete(get_bases({'base_universo_indirecta':sources['base_universo_indirecta'], 'base_universo_directa':sources['base_universo_directa']}, files_found, cached_data=False))
 bases = loop.run_until_complete(get_bases(sources, files_found, cached_data=True))  
 
 final_base = Cluster()

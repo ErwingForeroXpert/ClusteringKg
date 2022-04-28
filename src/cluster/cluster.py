@@ -161,12 +161,12 @@ class Cluster(dto.DataFrameOptimized):
 
                 #get repeated "vendedores"
                 mask_repeated = res_base.duplicated(subset=columns_universe[0], keep='first')
-                base_duplicated = res_base[mask_repeated].rename(columns={f"{columns_universe[2]}": f"{columns_universe[2]}_2", f"{columns_universe[3]}": f"{columns_universe[3]}_2"})
+                base_duplicated = res_base[mask_repeated].rename(columns={f"{columns_universe[3]}": f"{columns_universe[3]}_2", f"{columns_universe[4]}": f"{columns_universe[4]}_2"})
                 columns_duplicated = base_duplicated.columns.to_list()
 
                 #add the repeated "vendedores"
                 new_base = res_base[~mask_repeated].merge(
-                    right=base_duplicated[[columns_duplicated[0], f"{columns_universe[2]}_2", f"{columns_universe[3]}_2"]], 
+                    right=base_duplicated[[columns_duplicated[0], f"{columns_universe[3]}_2", f"{columns_universe[4]}_2"]], 
                     on= columns_universe[0], #cod_cliente
                     how="left"
                 )
@@ -250,7 +250,6 @@ class Cluster(dto.DataFrameOptimized):
                 base_clients = new_base.groupby(new_base.columns.tolist()[0], as_index=False).agg({
                     f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
                 })
-                general_bases.append(base_clients)
 
                 #get active months
                 months_cols = ["meses_ant_activos", "meses_act_activos"]
@@ -264,13 +263,20 @@ class Cluster(dto.DataFrameOptimized):
                 )[months_cols]
 
                 #get prom of sales
-                pool = ThreadPool(processes=2)
+                pool = ThreadPool(processes=4)
                 results = [pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_pesos, *months_cols]].values), ()),
-                            pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values), ())
+                    pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values), ()),
+                    pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, base_clients[[*cols_pesos, *months_cols]].values), ()),
+                    pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, base_clients[[*cols_kilos, *months_cols]].values), ())
                 ]
 
                 new_base[["prom_ant_pesos", "prom_act_pesos", "status"]] = results[0].get()
                 new_base[["prom_ant_kilos", "prom_act_kilos", "status"]] = results[1].get()
+                #save the prom by client
+                base_clients[["prom_ant_pesos", "prom_act_pesos", "status"]] = results[2].get()
+                base_clients[["prom_ant_kilos", "prom_act_kilos"]] = results[3].get()[:,:2]
+                general_bases.append(base_clients)
+
                 pool.close()
 
                 #drop empty registers
@@ -334,11 +340,11 @@ class Cluster(dto.DataFrameOptimized):
                 base_agents = new_base.groupby(new_base.columns[:2].tolist(), as_index=False).agg({
                     f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
                 })
-                general_bases.append(base_agents)
+                
 
                 #get active months
                 months_cols = ["meses_ant_activos", "meses_act_activos"]
-                base_agents[months_cols] = base_agents[cols_pesos].apply(lambda row: self.get_active_months(row, lots), axis=1).tolist()
+                base_agents[months_cols] = np.apply_along_axis(lambda row: self.get_active_months(row, lots), 1, base_agents[cols_pesos].values) 
 
                 new_base[months_cols] = new_base.merge(
                     right=base_agents[[*base_agents.columns[:2], *months_cols]], 
@@ -348,13 +354,19 @@ class Cluster(dto.DataFrameOptimized):
                 )[months_cols]
 
                 #get prom of sales
-                pool = ThreadPool(processes=2)
+                pool = ThreadPool(processes=4)
                 results = [pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_pesos, *months_cols]].values), ()),
-                            pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values), ())
+                    pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, new_base[[*cols_kilos, *months_cols]].values), ()),
+                    pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, base_agents[[*cols_pesos, *months_cols]].values), ()),
+                    pool.apply_async(lambda: np.apply_along_axis(lambda row: self.get_average(row, lots, months_cols), 1, base_agents[[*cols_kilos, *months_cols]].values), ())
                 ]
 
                 new_base[["prom_ant_pesos", "prom_act_pesos", "status"]] = results[0].get()
                 new_base[["prom_ant_kilos", "prom_act_kilos", "status"]] = results[1].get()
+                base_agents[["prom_ant_pesos", "prom_act_pesos", "status"]] = results[2].get()
+                base_agents[["prom_ant_kilos", "prom_act_kilos"]] = results[3].get()[:,:2]
+                general_bases.append(base_agents)
+
                 pool.close()
 
                 #drop empty registers
@@ -372,7 +384,7 @@ class Cluster(dto.DataFrameOptimized):
                 #get only required columns
                 only_cols_required = [col for col in res_base.columns if col not in cols_pesos and col not in cols_kilos]
                 res_base = res_base[only_cols_required]
-
+                
                 bases.append(
                     res_base
                 )
@@ -402,14 +414,15 @@ class Cluster(dto.DataFrameOptimized):
 
         #merge sales result
         clients_base, agents_base = general_bases
-        clients_base = clients_base[["cod_cliente", "meses_ant_activos", "meses_act_activos"]].drop_duplicates(["cod_cliente", "meses_ant_activos", "meses_act_activos"]).merge(
+        get_cols_bases = ["meses_ant_activos", "meses_act_activos", "prom_ant_pesos", "prom_act_pesos", "prom_ant_kilos", "prom_act_kilos"]
+        clients_base = clients_base[["cod_cliente", *get_cols_bases]].drop_duplicates(["cod_cliente"]).merge(
             right=sales_dir, 
             on=["cod_cliente"], 
             how="left"
         )
         
         agents_base.rename(columns={"cod_ecom":"cod_cliente"}, inplace=True)#change the column name only for merge
-        agents_base = agents_base[["cod_cliente", "cod_agente", "meses_ant_activos", "meses_act_activos"]].drop_duplicates(["cod_cliente", "cod_agente", "meses_ant_activos", "meses_act_activos"]).merge(
+        agents_base = agents_base[["cod_cliente", "cod_agente", *get_cols_bases]].drop_duplicates(["cod_cliente", "cod_agente"]).merge(
             right=sales_indir, 
             on=["cod_cliente", "cod_agente"], 
             how="left"
@@ -422,6 +435,7 @@ class Cluster(dto.DataFrameOptimized):
             how="left"
         )
 
+
         #merge active months and sales of "agentes"
         self.table = self.combine_columns(
             data=(group_clients, agents_base), 
@@ -429,6 +443,13 @@ class Cluster(dto.DataFrameOptimized):
             on=["cod_cliente","cod_agente"],
             how="left"    
         )
+
+        #replace NaN by default values
+        status_cols = [col for col in self.table.columns if "status" in col]
+        prom_cols = [col for col in self.table.columns if "prom" in col]
+        self.table[status_cols] = self.table[status_cols].fillna("Nunca ha comprando")
+        self.table[prom_cols] = self.table[prom_cols].fillna(0)
+
 
         #delete
         # #merge result with principal bases
@@ -482,6 +503,12 @@ class Cluster(dto.DataFrameOptimized):
         group_ant = np.array(row_values[len(row_values)-(lots*2):len(row_values)-lots], dtype=np.float64)
         group_act = np.array(row_values[len(row_values)-lots:], dtype=np.float64)
         
+
+        #apply ReLu function
+        group_old = group_old * (group_old > 0)
+        group_ant = group_ant * (group_ant > 0)
+        group_act = group_act * (group_act > 0)
+
         size_old = group_old.size
         end_moth_old = size_old if (v:=np.where(group_old > 0)[0]).size == 0 else v[0]
         old_quantity = (size_old - end_moth_old)/size_old
@@ -531,6 +558,10 @@ class Cluster(dto.DataFrameOptimized):
         months_values = np.array(row_values[length_without_months:], dtype=np.float64)
         group_ant = np.array(row_values[length_without_months-(lots*2):length_without_months-lots], dtype=np.float64)
         group_act = np.array(row_values[length_without_months-lots:length_without_months], dtype=np.float64)
+
+        #apply ReLu function
+        group_ant = group_ant * (group_ant > 0)
+        group_act = group_act * (group_act > 0)
 
         prom_ant, prom_act, status = 0, 0, type_status[0]
 
@@ -589,7 +620,7 @@ class Cluster(dto.DataFrameOptimized):
                 pbar.update(1)
 
         pbar.write(f'post procesando base...')     
-        self.post_process_base(properties)
+        self.post_process_base(properties["final_base"])
         pbar.update(1)
         pbar.close()
 

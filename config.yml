@@ -153,30 +153,32 @@ final_base:
     - vendedor_2
     - cod_jefe
     - jefe
-    - socio
+    - socios
     - latitud
     - longitud
-    - ventas_ant_kilos
-    - ventas_act_kilos
-    - ventas_ant_kilos_marca_1
-    - ventas_act_kilos_marca_1
-    - ventas_ant_kilos_marca_2
-    - ventas_act_kilos_marca_2
-    - ventas_ant_kilos_marca_3
-    - ventas_act_kilos_marca_3
-    - ventas_ant_kilos_marca_4
-    - ventas_act_kilos_marca_4
+    - prom_ant_kilos
+    - prom_act_kilos
+    - prom_ant_kilos_marca_1
+    - prom_act_kilos_marca_1
+    - prom_ant_kilos_marca_2
+    - prom_act_kilos_marca_2
+    - prom_ant_kilos_marca_3
+    - prom_act_kilos_marca_3
+    - prom_ant_kilos_marca_4
+    - prom_act_kilos_marca_4
     - status_marca_1
     - status_marca_2
     - status_marca_3
     - status_marca_4
-    - ventas_ant_pesos
-    - ventas_act_pesos
-    - ventas_ant_pesos_marca_1
-    - ventas_act_pesos_marca_1
-    - ventas_ant_pesos_marca_2
-    - ventas_act_pesos_marca_2
-    - ventas_ant_pesos_marca_3
-    - ventas_act_pesos_marca_3
-    - ventas_ant_pesos_marca_4
-    - ventas_act_pesos_marca_4
+    - prom_ant_pesos
+    - prom_act_pesos
+    - prom_ant_pesos_marca_1
+    - prom_act_pesos_marca_1
+    - prom_ant_pesos_marca_2
+    - prom_act_pesos_marca_2
+    - prom_ant_pesos_marca_3
+    - prom_act_pesos_marca_3
+    - prom_ant_pesos_marca_4
+    - prom_act_pesos_marca_4
+    - meses_ant_activos
+    - meses_act_activos
