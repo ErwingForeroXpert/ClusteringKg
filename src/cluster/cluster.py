@@ -313,17 +313,20 @@ class Cluster(dto.DataFrameOptimized):
                     f"{sale.replace(str(func.mask_number(sale)), str(max_sale_pesos + func.mask_number(sale)))}" \
                         for sale in columns_query_2 if "venta" in sale}, inplace=True)
                 
+                if feature_flags.ENVIROMENT == "DEV":
+                    base_1[base_1.columns[0]] = np.vectorize(func.mask_number)(base_1[base_1.columns[0]].astype(str)) #cod_agente
+                    base_1[base_1.columns[1]] = np.vectorize(func.mask_number)(base_1[base_1.columns[1]].astype(str)) #cod_ecom
+                    base_2[base_2.columns[0]] = np.vectorize(func.mask_number)(base_2[base_2.columns[0]].astype(str)) #cod_agente
+                    base_2[base_2.columns[1]] = np.vectorize(func.mask_number)(base_2[base_2.columns[1]].astype(str)) #cod_ecom
+
+
                 #merge both bases year before and year after
                 new_base = base_1.merge(
                     right=base_2, 
-                    right_on=base_2.columns.tolist()[:3], #cod_agente, cod_ecom
+                    right_on=base_2.columns.tolist()[:3], #cod_agente, cod_ecom, marca
                     left_on= columns_query_1[:3], 
                     how="left"
                 )
-
-                if feature_flags.ENVIROMENT == "DEV":
-                    new_base[new_base.columns[0]] = np.vectorize(func.mask_number)(new_base[new_base.columns[0]].astype(str)) #cod_agente
-                    new_base[new_base.columns[1]] = np.vectorize(func.mask_number)(new_base[new_base.columns[1]].astype(str)) #cod_ecom
 
                 cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
                 cols_kilos = sorted([col for col in new_base.columns.tolist() if "venta_kilos" in col.lower()], key=lambda x: func.mask_number(x))
