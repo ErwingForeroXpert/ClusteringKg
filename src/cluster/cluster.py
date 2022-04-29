@@ -331,11 +331,6 @@ class Cluster(dto.DataFrameOptimized):
                 cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
                 cols_kilos = sorted([col for col in new_base.columns.tolist() if "venta_kilos" in col.lower()], key=lambda x: func.mask_number(x))
 
-                # delete
-                # #group by "cod_agente", "cod_ecom" and "marca"
-                # new_base = new_base.groupby(new_base.columns[:3].tolist(), as_index=False).agg({
-                #         f"{column}": "sum" for column in [*cols_pesos, *cols_kilos]
-                # })
 
                 new_base[[*cols_pesos, *cols_kilos]] = new_base[[*cols_pesos, *cols_kilos]].fillna(0)
 
@@ -453,25 +448,6 @@ class Cluster(dto.DataFrameOptimized):
         self.table[status_cols] = self.table[status_cols].fillna("Nunca ha comprando")
         self.table[prom_cols] = self.table[prom_cols].fillna(0)
 
-
-        #delete
-        # #merge result with principal bases
-        # group_clients = self.table.merge(
-        #     right=general_bases[0], 
-        #     on=general_bases[0].columns.tolist()[0], # merge by cod_cliente
-        #     how="left"
-        # )
-
-        # self.table = self.combine_columns(
-        #     data=(group_clients, general_bases[1]), 
-        #     suffixes=("_x", "_y"),
-        #     on=general_bases[1].columns.tolist()[:2], # merge by cod_agente and cod_ecom
-        #     how="left"    
-        # ).merge(
-        #     right=more_sales_pivot, 
-        #     on=more_sales_pivot.columns.tolist()[0], # merge with brands
-        #     how="left"
-        # )
 
     def post_process_base(self, final_base: list) -> None:
         """Post process final base
