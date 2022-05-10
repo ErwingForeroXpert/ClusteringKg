@@ -22,7 +22,19 @@ async def get_bases(sources: dict[str, str], files: list[str], cached_data: bool
     """
     if cached_data is True:
         #only for test with csv value - delete
-        bases = {f"{file.split('.')[0]}": DataFrameOptimized(pd.read_csv(os.path.join(const.ROOT_DIR, f"files/temp/{file}"))) for file in os.listdir(os.path.join(const.ROOT_DIR, f"files/temp"))}
+        bases = {}
+        for file in os.listdir(os.path.join(const.ROOT_DIR, f"files/temp")):
+            source = {}
+            for key, s in sources.items():
+                if key in file:
+                    source = s
+            
+            converters = Cluster.process_converters(source["converters"], source["converters"].keys()) if "converters" in source.keys(
+            ) else None
+            bases[f"{file.split('.')[0]}"] = DataFrameOptimized.get_table_csv(os.path.join(const.ROOT_DIR, f"files/temp/{file}"), 
+                    encoding="utf-8",
+                    converters=converters)
+
         bases["base_consulta_directa"] = [bases.pop('base_consulta_directa_0')]
         bases["base_consulta_indirecta"] = [bases.pop('base_consulta_indirecta_0'), bases.pop('base_consulta_indirecta_1')]
 
@@ -46,6 +58,8 @@ async def get_bases(sources: dict[str, str], files: list[str], cached_data: bool
 
         for key, base in zip(keys, results): 
             if isinstance(base, (list, tuple)):
+                if "_directa" in key:
+                    print("stop")
                 for idx in range(len(base)):
                     base[idx].table.to_csv(f"{os.path.join(const.ROOT_DIR, 'files/temp')}/{key}_{idx}.csv", encoding="utf-8", index = None)
             else:
@@ -85,6 +99,7 @@ def get_predeterminated_files(_path: str):
                     found["base_consulta_directa"] = "|".join(files)
         return found
 
+
 #load config, paths and structure of files
 config = utils.get_config(os.path.join(const.ROOT_DIR, "config.yml"))
 files_found = get_predeterminated_files(os.path.join(const.ROOT_DIR, "files/Bases"))
@@ -93,7 +108,7 @@ sources = config["sources"]
 #actual event loop
 loop = asyncio.get_event_loop()
 
-# loop.run_until_complete(get_bases({'base_universo_indirecta':sources['base_universo_indirecta'], 'base_universo_directa':sources['base_universo_directa']}, files_found, cached_data=False))
+# loop.run_until_complete(get_bases({'base_consulta_directa':sources['base_consulta_directa']}, files_found, cached_data=False))
 bases = loop.run_until_complete(get_bases(sources, files_found, cached_data=True))  
 
 final_base = Cluster()
@@ -105,4 +120,6 @@ stats.sort_stats(pstats.SortKey.TIME)
 stats.print_stats()
 stats.dump_stats(filename='needs_profiling.prof')
 
-final_base.table.to_csv("base_final.csv", index=False, encoding="utf-8")
+
+final_base.table.to_csv("base_final.xlsx", index=False, encoding="utf-8", float_format='%.10f')
+# final_base.table.to_excel("base_final.xlsx", index=False, encoding="utf-8", float_format='%.10f') #more slow that to_csv

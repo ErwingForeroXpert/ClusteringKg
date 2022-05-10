@@ -3,7 +3,6 @@
 #    @author: ErwingForero 
 # 
 
-from io import StringIO
 import os
 import time
 import openpyxl
@@ -13,7 +12,6 @@ import pyxlsb as pyx
 import xlwings as xw
 import numpy as np
 from typing import Any
-from xlsx2csv import Xlsx2csv
 from . import constants as const
 
 def get_config(path: str) -> dict:
@@ -201,7 +199,7 @@ def convert_row(row: 'np.array', converter: 'list') -> 'np.array':
             row[i] = converter[i](row[i]) #1D Array
     return row
 
-def get_data_of_excel_sheet(file_path: str, sheet: str, header_idx: 'list'= None, skiprows: 'list'= None, row_converter: 'list' = None, encoding: 'str' = 'utf-8') -> 'np.array':
+def get_data_of_excel_sheet(file_path: str, sheet: str, header_idx: 'list'= None, skiprows: 'list'= None, converters: 'list' = None, *args, **kargs) -> 'np.array|pd.Dataframe':
     """Get data of sheet in Excel File
 
     Returns:
@@ -210,8 +208,8 @@ def get_data_of_excel_sheet(file_path: str, sheet: str, header_idx: 'list'= None
     try:
         data = None
         if "xlsm" in file_path.lower() or "xlsx" in file_path.lower():
-            table = pd.read_excel(file_path, sheet_name=sheet, header=None, usecols=header_idx, skiprows=skiprows[0])
-            data = table.values
+            table = pd.read_excel(file_path, sheet_name=sheet, header=None, usecols=header_idx, skiprows=skiprows[0], converters=converters, *args, **kargs)
+            return table
         elif "xlsb" in file_path.lower():
             with pyx.open_workbook(file_path) as wb:
                 with wb.get_sheet(sheet) as _sheet:
@@ -220,8 +218,8 @@ def get_data_of_excel_sheet(file_path: str, sheet: str, header_idx: 'list'= None
             if header_idx is not None:
                 data = data[:, header_idx]
 
-            if row_converter is not None:
-                data = np.apply_along_axis(convert_row, 1, data, row_converter)
+            if converters is not None:
+                data = np.apply_along_axis(convert_row, 1, data, converters)
 
             if skiprows is not None:
                 data = data[skiprows[0]:skiprows[1],:]

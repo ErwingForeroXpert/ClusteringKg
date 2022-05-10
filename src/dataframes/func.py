@@ -4,7 +4,7 @@
 # 
 import re
 from typing import Any
-from numpy import number, isnan, __name__, array, int64, NaN
+from numpy import float64, number, isnan, __name__, array, int64, NaN
 from pandas import isnull, isna
 from utils.index import is_iterable
 from unidecode import unidecode
@@ -103,4 +103,15 @@ def mask_number(value: 'Any') -> int64:
         except ValueError:
             return NaN
 
-print("hi")
+def mask_float(value: 'Any') -> int64:
+    if isnull(value) or str(value) == "":
+        return NaN
+    else:
+        try:
+            if (res:=re.search(r'\-*\d+(\,*|\.*)\d+',str(value))) is not None:
+                found = res.group(0).replace(",", ".")
+            else:
+                found = 0
+            return float64(found)
+        except ValueError:
+            return NaN

@@ -484,7 +484,7 @@ class DataFrameOptimized():
         return _temp_table
 
     @staticmethod
-    def get_table_excel(path: str, sheet: str, header_idx: 'list' = None, skiprows: 'list' = None, converters: 'list' = None, encoding: 'str' = "utf-8", *args, **kargs) -> 'DataFrameOptimized':
+    def get_table_excel(path: str, sheet: str, header_idx: 'list' = None, skiprows: 'list' = None, converters: 'dict' = None, *args, **kargs) -> 'DataFrameOptimized':
         """Returns a DataFrame instance that will be used to parse the table at the given path .
 
         Args:
@@ -499,7 +499,7 @@ class DataFrameOptimized():
         """
         try:
             _data = utils.get_data_of_excel_sheet(
-                file_path=path, sheet=sheet, header_idx=header_idx, skiprows=skiprows, row_converter=converters, encoding=encoding)
+                file_path=path, sheet=sheet, header_idx=header_idx, skiprows=skiprows, converters=converters, *args, **kargs)
             _dt = DataFrameOptimized(_data, *args, **kargs)
             return _dt
 

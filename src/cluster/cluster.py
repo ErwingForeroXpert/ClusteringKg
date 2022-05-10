@@ -8,6 +8,7 @@ from multiprocessing.pool import ThreadPool
 import re
 import numpy as np
 import pandas as pd
+from scipy import stats
 from dataframes import dataframe_optimized as dto, func
 from utils import feature_flags, index as utils
 from .cluster_types import TYPE_CLUSTERS
@@ -107,7 +108,8 @@ class Cluster(dto.DataFrameOptimized):
         #convert into number 
         if feature_flags.ENVIROMENT == "DEV":
             table_coords[columns_coords[0]] = np.vectorize(func.mask_number)(table_coords[columns_coords[0]].astype(str)) #cod_cliente
-            # table_coords[columns_coords[3]] = np.vectorize(func.mask_number)(table_coords[columns_coords[3]].astype(str)) #cod_loc
+            table_coords[columns_coords[1]] = np.vectorize(func.mask_float)(table_coords[columns_coords[1]].astype(str)) #latitud
+            table_coords[columns_coords[2]] = np.vectorize(func.mask_float)(table_coords[columns_coords[2]].astype(str)) #longitud
             table_coords[columns_coords[3]] = np.vectorize(func.mask_number)(table_coords[columns_coords[3]].astype(str)) #cod_agente
             table_coords[columns_coords[4]] = np.vectorize(func.mask_number)(table_coords[columns_coords[4]].astype(str)) #cod_ecom
 
@@ -448,6 +450,25 @@ class Cluster(dto.DataFrameOptimized):
         self.table[status_cols] = self.table[status_cols].fillna("Nunca ha comprando")
         self.table[prom_cols] = self.table[prom_cols].fillna(0)
 
+        #variacion
+        self.table["variacion_prom_pesos"] = (self.table["prom_act_pesos"].astype(np.float64)/self.table["prom_ant_pesos"].astype(np.float64))
+        self.table.loc[pd.isna(self.table["variacion_prom_pesos"]), "variacion_prom_pesos"] = 1
+        self.table["variacion_prom_pesos"] -=1
+
+        self.table["variacion_prom_kilos"] = (self.table["prom_act_kilos"].astype(np.float64)/self.table["prom_ant_kilos"].astype(np.float64))
+        self.table.loc[pd.isna(self.table["variacion_prom_kilos"]), "variacion_prom_kilos"] = 1
+        self.table["variacion_prom_kilos"] -=1
+
+        #iqr filter: within 2.22 IQR (equiv. to z-score < 3)
+        iqr_pesos = self.table["variacion_prom_pesos"].quantile(0.75) - self.table["variacion_prom_pesos"].quantile(0.25)
+        mask_limit_pesos = np.abs((self.table["variacion_prom_pesos"] - self.table["variacion_prom_pesos"].median()) / iqr_pesos) > 2.22
+        iqr_kilos = self.table["variacion_prom_kilos"].quantile(0.75) - self.table["variacion_prom_kilos"].quantile(0.25)
+        mask_limit_kilos = np.abs((self.table["variacion_prom_kilos"] - self.table["variacion_prom_kilos"].median()) / iqr_kilos) > 2.22
+
+        self.table["dist_prom_pesos"] = stats.norm.cdf(self.table["variacion_prom_pesos"]) # normal standar distribution
+        self.table.loc[mask_limit_pesos,"dist_prom_pesos"] = stats.norm.ppf(0.75) 
+        self.table["dist_prom_kilos"] = stats.norm.cdf(self.table["variacion_prom_kilos"])
+        self.table.loc[mask_limit_kilos,"dist_prom_kilos"] = stats.norm.ppf(0.75)
 
     def post_process_base(self, final_base: list) -> None:
         """Post process final base
@@ -659,8 +680,7 @@ class Cluster(dto.DataFrameOptimized):
                     header_idx=header_idx, 
                     skiprows=skiprows,  
                     converters=converters,
-                    encoding=encoding, 
-                    columns=header_names)
+                    names=header_names)
 
             return base
 
@@ -719,4 +739,6 @@ class Cluster(dto.DataFrameOptimized):
                     _converters[col_match] = func.mask_number
                 elif conv.lower() == "text":
                     _converters[col_match] = func.mask_string
+                elif conv.lower() == "float":
+                    _converters[col_match] = func.mask_float
         return _converters

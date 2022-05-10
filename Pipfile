@@ -12,6 +12,8 @@ pyyaml = "*"
 openpyxl = "*"
 tqdm = "*"
 unidecode = "*"
+scipy = "*"
+matplotlib = "*"
 
 [dev-packages]
 autopep8 = "*"

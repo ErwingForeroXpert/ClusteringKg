@@ -75,6 +75,8 @@ sources:
                 pos: 3 
               - column: cod_cliente
                 pos: 7 
+              - column: nom_cliente
+                pos: 8
               - column: direccion
                 pos: 14
               - column: subcanal
@@ -101,6 +103,7 @@ sources:
                   pos: 5
           converters:
               cod_cliente: number
+              mes: text
               venta_pesos: number
               venta_kilos: number
     base_consulta_indirecta:
@@ -182,3 +185,7 @@ final_base:
     - prom_act_pesos_marca_4
     - meses_ant_activos
     - meses_act_activos
+    - variacion_prom_pesos
+    - variacion_prom_kilos
+    - dist_prom_pesos
+    - dist_prom_kilos
