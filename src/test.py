@@ -121,5 +121,5 @@ stats.print_stats()
 stats.dump_stats(filename='needs_profiling.prof')
 
 
-final_base.table.to_csv("base_final.xlsx", index=False, encoding="utf-8", float_format='%.10f')
+final_base.table.to_csv("base_final.csv", index=False, encoding="utf-8", float_format='%.10f')
 # final_base.table.to_excel("base_final.xlsx", index=False, encoding="utf-8", float_format='%.10f') #more slow that to_csv
