@@ -104,8 +104,8 @@ sources:
           converters:
               cod_cliente: number
               mes: text
-              venta_pesos: number
-              venta_kilos: number
+              venta_pesos: float
+              venta_kilos: float
     base_consulta_indirecta:
         type: folder
         sheet: 0
@@ -135,8 +135,8 @@ sources:
         converters:
               cod_agente: number
               cod_ecom: number
-              venta_pesos: number
-              venta_kilos: number
+              venta_pesos: float
+              venta_kilos: float
 order_base:
   - base_universo_directa
   - base_universo_indirecta

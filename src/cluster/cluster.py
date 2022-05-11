@@ -217,7 +217,7 @@ class Cluster(dto.DataFrameOptimized):
                 columns = table_query.columns.tolist()
 
                 #delete
-                # table_query.drop(table_query[table_query[columns[1]]=="2022.05"].index, inplace=True)
+                table_query.drop(table_query[table_query[columns[1]]=="2022.05"].index, inplace=True)
                 #standardize year format
                 mask_no_empty_months = ~pd.isna(table_query[columns[1]])
                 table_query.loc[mask_no_empty_months, columns[1]] = \
