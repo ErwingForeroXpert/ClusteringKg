@@ -53,8 +53,8 @@ class Cluster(dto.DataFrameOptimized):
         mask_directa = ((mask_client | mask_loc) & ~mask_isindirecta)
         mask_indirecta = ((mask_client & mask_agent) & mask_isindirecta)
 
-        base["socios"] = "no"
-        base.loc[(mask_directa | mask_indirecta), "socios"] = "si" 
+        base["socios"] = "No"
+        base.loc[(mask_directa | mask_indirecta), "socios"] = "Si" 
         
         #convert into number 
         if feature_flags.ENVIROMENT == "DEV":
@@ -80,7 +80,7 @@ class Cluster(dto.DataFrameOptimized):
         new_base = pd.concat((dir_merge, indi_merge), axis=0, ignore_index=True)
 
         partners_not_found = pd.isna(new_base["socios"]) 
-        new_base.loc[partners_not_found, "socios"] = "no"
+        new_base.loc[partners_not_found, "socios"] = "No"
         new_base.drop_duplicates(inplace=True)
 
         self.table = new_base
@@ -216,6 +216,8 @@ class Cluster(dto.DataFrameOptimized):
                 table_query = base[0].table
                 columns = table_query.columns.tolist()
 
+                #delete
+                # table_query.drop(table_query[table_query[columns[1]]=="2022.05"].index, inplace=True)
                 #standardize year format
                 mask_no_empty_months = ~pd.isna(table_query[columns[1]])
                 table_query.loc[mask_no_empty_months, columns[1]] = \
@@ -273,7 +275,7 @@ class Cluster(dto.DataFrameOptimized):
                 ]
 
                 new_base[["prom_ant_pesos", "prom_act_pesos", "status"]] = results[0].get()
-                new_base[["prom_ant_kilos", "prom_act_kilos", "status"]] = results[1].get()
+                new_base[["prom_ant_kilos", "prom_act_kilos"]] = results[1].get()[:,:2]
                 #save the prom by client
                 base_clients[["prom_ant_pesos", "prom_act_pesos", "status"]] = results[2].get()
                 base_clients[["prom_ant_kilos", "prom_act_kilos"]] = results[3].get()[:,:2]
@@ -362,7 +364,7 @@ class Cluster(dto.DataFrameOptimized):
                 ]
 
                 new_base[["prom_ant_pesos", "prom_act_pesos", "status"]] = results[0].get()
-                new_base[["prom_ant_kilos", "prom_act_kilos", "status"]] = results[1].get()
+                new_base[["prom_ant_kilos", "prom_act_kilos"]] = results[1].get()[:,:2]
                 base_agents[["prom_ant_pesos", "prom_act_pesos", "status"]] = results[2].get()
                 base_agents[["prom_ant_kilos", "prom_act_kilos"]] = results[3].get()[:,:2]
                 general_bases.append(base_agents)
@@ -451,19 +453,19 @@ class Cluster(dto.DataFrameOptimized):
         self.table[prom_cols] = self.table[prom_cols].fillna(0)
 
         #variacion
-        self.table["variacion_prom_pesos"] = (self.table["prom_act_pesos"].astype(np.float64)/self.table["prom_ant_pesos"].astype(np.float64))
-        self.table.loc[pd.isna(self.table["variacion_prom_pesos"]), "variacion_prom_pesos"] = 1
+        self.table["variacion_prom_pesos"] = np.divide(self.table["prom_act_pesos"].astype(np.float64), self.table["prom_ant_pesos"].astype(np.float64))
+        self.table.loc[(pd.isna(self.table["variacion_prom_pesos"]) | (self.table["variacion_prom_pesos"] == np.inf)), "variacion_prom_pesos"] = 1
         self.table["variacion_prom_pesos"] -=1
 
-        self.table["variacion_prom_kilos"] = (self.table["prom_act_kilos"].astype(np.float64)/self.table["prom_ant_kilos"].astype(np.float64))
-        self.table.loc[pd.isna(self.table["variacion_prom_kilos"]), "variacion_prom_kilos"] = 1
+        self.table["variacion_prom_kilos"] = np.divide(self.table["prom_act_kilos"].astype(np.float64), self.table["prom_ant_kilos"].astype(np.float64))
+        self.table.loc[(pd.isna(self.table["variacion_prom_kilos"]) | (self.table["variacion_prom_kilos"] == np.inf)), "variacion_prom_kilos"] = 1
         self.table["variacion_prom_kilos"] -=1
 
         #iqr filter: within 2.22 IQR (equiv. to z-score < 3)
         iqr_pesos = self.table["variacion_prom_pesos"].quantile(0.75) - self.table["variacion_prom_pesos"].quantile(0.25)
-        mask_limit_pesos = np.abs((self.table["variacion_prom_pesos"] - self.table["variacion_prom_pesos"].median()) / iqr_pesos) > 2.22
+        mask_limit_pesos = np.abs(np.divide((self.table["variacion_prom_pesos"] - self.table["variacion_prom_pesos"].median()), iqr_pesos)) > 2.22
         iqr_kilos = self.table["variacion_prom_kilos"].quantile(0.75) - self.table["variacion_prom_kilos"].quantile(0.25)
-        mask_limit_kilos = np.abs((self.table["variacion_prom_kilos"] - self.table["variacion_prom_kilos"].median()) / iqr_kilos) > 2.22
+        mask_limit_kilos = np.abs(np.divide((self.table["variacion_prom_kilos"] - self.table["variacion_prom_kilos"].median()), iqr_kilos)) > 2.22
 
         self.table["dist_prom_pesos"] = stats.norm.cdf(self.table["variacion_prom_pesos"]) # normal standar distribution
         self.table.loc[mask_limit_pesos,"dist_prom_pesos"] = stats.norm.ppf(0.75) 
@@ -478,6 +480,10 @@ class Cluster(dto.DataFrameOptimized):
         for idx, _type in enumerate(list(self.table.dtypes)):
             if _type == pd.StringDtype:
                 self.table[columns[idx]] = np.vectorize(func.remove_accents)(self.table[columns[idx]].fillna("").astype(str))
+
+        #limit chars of columns (clientes, direccion)
+        self.table["nom_cliente"] = self.table["nom_cliente"].str[:30]
+        self.table["direccion"] = self.table["direccion"].str[:30]
 
         self.table = self.table[final_base]
 
@@ -529,12 +535,16 @@ class Cluster(dto.DataFrameOptimized):
                 if act_quantity > umbral and months_act <= lots//2:
                     end_moth_ant = lots
                     end_moth_act = lots
+            elif act_quantity > umbral and months_act <= lots//2:
+                    end_moth_act = (lots-months_act)
+
         else:
             if ant_quantity > umbral and months_ant <= lots//2:
                 end_moth_ant = (lots-months_ant)
                 if act_quantity > umbral and months_act <= lots//2:
-                    end_moth_ant = lots
                     end_moth_act = lots
+            elif act_quantity > umbral and months_act <= lots//2:
+                    end_moth_act = (lots-months_act)
 
         return end_moth_ant, end_moth_act
 
@@ -553,7 +563,7 @@ class Cluster(dto.DataFrameOptimized):
             "Dejo de comprar", 
             "Sigue comprando"
         ]
-
+        
         length_without_months = len(row_values) - len(active_months)
         months_values = np.array(row_values[length_without_months:], dtype=np.float64)
         group_ant = np.array(row_values[length_without_months-(lots*2):length_without_months-lots], dtype=np.float64)
@@ -565,16 +575,19 @@ class Cluster(dto.DataFrameOptimized):
 
         prom_ant, prom_act, status = 0, 0, type_status[0]
 
-        if months_values[0] != 0 and months_values[0] != np.nan:
-            prom_ant = np.sum(group_ant)/months_values[0]
+        if (ant:=np.sum(group_ant)) > 0:
             status = type_status[2]
+            if months_values[0] != 0:
+                prom_ant = ant/months_values[0]
         
-        if months_values[1] != 0 and months_values[1] != np.nan:
-            prom_act = np.sum(group_act)/months_values[1]
+        if (act:=np.sum(group_act)) > 0:
             if prom_ant != 0:
                 status = type_status[3]
             else:
                 status = type_status[1]
+            
+            if months_values[1] != 0:
+                prom_act = act/months_values[1]
 
         return prom_ant, prom_act, status
 
