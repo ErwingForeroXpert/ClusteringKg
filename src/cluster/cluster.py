@@ -217,7 +217,7 @@ class Cluster(dto.DataFrameOptimized):
                 columns = table_query.columns.tolist()
 
                 #delete
-                # table_query.drop(table_query[table_query[columns[1]]=="2022.05"].index, inplace=True)
+                table_query.drop(table_query[table_query[columns[1]]=="2022.05"].index, inplace=True)
                 #standardize year format
                 mask_no_empty_months = ~pd.isna(table_query[columns[1]])
                 table_query.loc[mask_no_empty_months, columns[1]] = \
@@ -746,12 +746,10 @@ class Cluster(dto.DataFrameOptimized):
         """
         _converters = {}
         for key, conv in converters.items():
-            columns_match = [col for col in columns if col in key]
-            for col_match in columns_match:
-                if conv.lower() == "number":
-                    _converters[col_match] = func.mask_number
-                elif conv.lower() == "text":
-                    _converters[col_match] = func.mask_string
-                elif conv.lower() == "float":
-                    _converters[col_match] = func.mask_float
+            if conv.lower() == "number":
+                _converters[key] = func.mask_number
+            elif conv.lower() == "text":
+                _converters[key] = func.mask_string
+            elif conv.lower() == "float":
+                _converters[key] = func.mask_float
         return _converters
