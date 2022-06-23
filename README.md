@@ -82,6 +82,7 @@ Seconly, if you use the file ```src\main.ipynb```, execute cell by cell in the o
   nest_asyncio.apply()
   ...
   ```
+- after executing all the previous cells, you only need to execute the final cell.
 
 ## Directory Hierarchy
 ```
