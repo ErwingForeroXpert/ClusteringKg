@@ -99,6 +99,7 @@ def get_predeterminated_files(_path: str):
                     found["base_consulta_directa"] = "|".join(files)
         return found
 
+utils.create_necesary_folders(os.path.join(const.ROOT_DIR, "files"), ["utils", "temp"])
 
 #load config, paths and structure of files
 config = utils.get_config(os.path.join(const.ROOT_DIR, "config.yml"))
@@ -108,7 +109,10 @@ sources = config["sources"]
 #actual event loop
 loop = asyncio.get_event_loop()
 
+# delete
 # loop.run_until_complete(get_bases({'base_universo_indirecta':sources['base_universo_indirecta']}, files_found, cached_data=False))
+# end delete
+
 bases = loop.run_until_complete(get_bases(sources, files_found, cached_data=False))  
 
 final_base = Cluster()

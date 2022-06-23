@@ -84,7 +84,6 @@ sources:
           converters:
               cod_agente: number
               cod_cliente: number
-              subcanal: number
     base_consulta_directa:
           type: folder
           sheet: 0
@@ -129,9 +128,9 @@ sources:
               - column: marca
                 pos: 3
               - column: venta_pesos
-                pos: '4-7'
+                pos: '4-8'
               - column: venta_kilos
-                pos: '8-11'
+                pos: '9-13'
         converters:
               cod_agente: number
               cod_ecom: number
