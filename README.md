@@ -9,6 +9,12 @@ Process for extract the information of months sales, separating for type "actual
 ## Install & Dependence
 - Python 3.8
 - pipenv
+- Fuentes de informacion:
+  - BaseSocios - archivo
+  - Coordenadas - archivo
+  - universo indirecta - archivo
+  - universo directa - archivo
+  - Consultas (directa y indirecta) - carpetas
 
 ## Use
 - Install dependencies
@@ -52,6 +58,29 @@ Process for extract the information of months sales, separating for type "actual
   |        |—— Universo Directa.xlsm
   |        |—— Universo Indirecta.xlsm
       ...
+  ```
+## Execution
+- inside the file ```src/test.py```, change the next line:
+  ```python
+  ...
+  bases = loop.run_until_complete(get_bases(sources, files_found,cached_data=False)) #False if is the first time
+  ...
+  ```
+- inside the console execute the next command:
+  ```bash
+  python src\test.py
+  ```
+### Notebook
+
+Seconly, if you use the file ```src\main.ipynb```, execute cell by cell in the order has been created.
+
+- is important install **nest_asyncio**, for execute async inside notebook
+  ```python
+  ...
+  # !pip install nest_asyncio
+  import nest_asyncio
+  nest_asyncio.apply()
+  ...
   ```
 
 ## Directory Hierarchy
