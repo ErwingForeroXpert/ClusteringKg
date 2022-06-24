@@ -16,4 +16,5 @@ _dev*
 *.exe
 *.zip
 *.log
+*.pkl
 ~$*
