@@ -108,7 +108,7 @@ def mask_float(value: 'Any') -> int64:
         return NaN
     else:
         try:
-            if (res:=re.search(r'\-*\d+(\,*|\.*)\d+',str(value))) is not None:
+            if (res:=re.search(r'\-*\d*(\,|\.)*\d+',str(value))) is not None:
                 found = res.group(0).replace(",", ".")
             else:
                 found = 0
