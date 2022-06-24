@@ -8,7 +8,7 @@ from dataframes.dataframe_optimized import DataFrameOptimized
 from cluster.cluster import Cluster
 from utils import constants as const, index as utils
 
-async def get_bases(path: str, sources: dict[str, str], files: list[str], cached_data: bool = False) -> dict:
+async def get_bases(path: str = None, sources: dict[str, str] = None, files: list[str] = None, cached_data: bool = False) -> dict:
     """Get bases of path
 
     Args:
@@ -24,7 +24,7 @@ async def get_bases(path: str, sources: dict[str, str], files: list[str], cached
         bases = {
             f"{key}": [] for key in sources.keys()
         }
-        for file in os.listdir(path):
+        for file in filter(lambda v: re.match(r'.*.csv',v) , os.listdir(path)):
             source = {}
             actual_key = None
             for key, s in sources.items():
@@ -40,7 +40,7 @@ async def get_bases(path: str, sources: dict[str, str], files: list[str], cached
 
         bases = {
             **bases,
-            **{f"{key}": values[0] for key, values in bases if "consulta" not in key}
+            **{f"{key}": values[0] for key, values in bases.items() if "consulta" not in key}
         }
 
     else:
@@ -111,5 +111,5 @@ def async_test(f):
     """
     def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(f(*args, **kwargs))
+        return loop.run_until_complete(f(*args, **kwargs))
     return wrapper

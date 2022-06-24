@@ -105,7 +105,7 @@ class Cluster(dto.DataFrameOptimized):
         new_base.drop_duplicates(inplace=True)
         
         if feature_flags.ENVIROMENT == "DEV":
-            self.save_actual_progress(new_base, process="base_partners")
+            self.save_actual_progress(new_base, process="base_socios")
 
         self.table = new_base
 
@@ -164,7 +164,11 @@ class Cluster(dto.DataFrameOptimized):
             suffixes=("_x", "_y"),
             on=columns_general,
             how="left")
-    
+
+        if feature_flags.ENVIROMENT == "DEV":
+            self.save_actual_progress(self.table, process="base_coordenadas")
+
+
     def process_bases_universe(self, bases_universe: 'list(dto.DataFrameOptimized)', types: 'list(str)') -> None:
         """Processes the bases_universe columns and returns a new list of bases .
 
@@ -236,7 +240,7 @@ class Cluster(dto.DataFrameOptimized):
         self.table = pd.concat(bases, ignore_index=True, axis=0)
 
         if feature_flags.ENVIROMENT == "DEV":
-            self.save_actual_progress(self.table, process="base_universe")
+            self.save_actual_progress(self.table, process="base_universo")
 
     async def process_bases_query(self, bases_query: 'list(list[dto.DataFrameOptimized])', types: 'list(str)', lots: int = 6) -> None:
         ""
@@ -515,7 +519,7 @@ class Cluster(dto.DataFrameOptimized):
         self.table.loc[mask_limit_kilos,"dist_prom_kilos"] = stats.norm.ppf(0.75)
 
         if feature_flags.ENVIROMENT == "DEV":
-            self.save_actual_progress(self.table, process="base_queries")
+            self.save_actual_progress(self.table, process="base_consulta")
 
     def post_process_base(self, final_base: list) -> None:
         """Post process final base
