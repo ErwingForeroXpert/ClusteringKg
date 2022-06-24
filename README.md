@@ -84,6 +84,41 @@ Seconly, if you use the file ```src\main.ipynb```, execute cell by cell in the o
   ```
 - after executing all the previous cells, you only need to execute the final cell.
 
+## Test
+
+### Test Cluster
+
+For test the cluster class base need the following:
+
+- Requirements:
+
+  1. inside the ```test\files``` folder must have a folder ```base_{n}``` with the next structure:
+  
+  - `n` is the number of group.
+  
+  ```
+  ...
+  |—— bases_n
+  |    |—— base_consulta_directa_0.csv
+  |    |—— base_consulta_indirecta_0.csv
+  |    |—— base_consulta_indirecta_1.csv
+  |    |—— base_coordenadas.csv
+  |    |—— base_universo_directa.csv
+  |    |—— base_universo_iddirecta.csv
+  |    |—— result
+       |    |—— ...
+  ...
+  ```
+  this files are generated automatically when executes the process of [execution](#execution)
+
+### Run 
+
+For run test only need the next command inside console
+
+```bash
+  python -m unittest
+```
+
 ## Directory Hierarchy
 ```
 |—— .gitignore

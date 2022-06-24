@@ -14,9 +14,9 @@ sources:
             - column: atencion
               pos: 4
         converters:
-            cod_cliente: number
-            cod_loc: number
-            cod_agente: number
+            cod_cliente: text
+            cod_loc: text
+            cod_agente: text
     base_coordenadas:
         type: file
         sheet: Base
@@ -34,9 +34,9 @@ sources:
             - column: cod_ecom
               pos: 5
         converters:
-            cod_cliente: number
-            cod_agente: number
-            cod_ecom: number
+            cod_cliente: text
+            cod_agente: text
+            cod_ecom: text
     base_universo_directa:
         type: file
         sheet: Maestra
@@ -60,9 +60,9 @@ sources:
             - column: jefe
               pos: 58
         converters:
-            cod_cliente: number
-            cod_vendedor: number
-            cod_jefe: number
+            cod_cliente: text
+            cod_vendedor: text
+            cod_jefe: text
     base_universo_indirecta:
           type: file
           sheet: BD
@@ -82,8 +82,8 @@ sources:
               - column: subcanal
                 pos: 28
           converters:
-              cod_agente: number
-              cod_cliente: number
+              cod_cliente: text
+              cod_agente: text
     base_consulta_directa:
           type: folder
           sheet: 0
@@ -101,7 +101,7 @@ sources:
                 - column: venta_kilos
                   pos: 5
           converters:
-              cod_cliente: number
+              cod_cliente: text
               mes: text
               venta_pesos: float
               venta_kilos: float
@@ -132,8 +132,8 @@ sources:
               - column: venta_kilos
                 pos: '9-13'
         converters:
-              cod_agente: number
-              cod_ecom: number
+              cod_agente: text
+              cod_ecom: text
               venta_pesos: float
               venta_kilos: float
 order_base:

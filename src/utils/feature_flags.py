@@ -4,3 +4,4 @@
 # 
 
 ENVIROMENT = "DEV" #actual enviroment of project DEV or PROD
+ACTUAL_BASES = 0 # number of group bases 

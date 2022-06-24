@@ -6,11 +6,12 @@
 from copy import copy
 from multiprocessing.pool import ThreadPool
 import re
+import os
 import numpy as np
 import pandas as pd
 from scipy import stats
 from dataframes import dataframe_optimized as dto, func
-from utils import feature_flags, index as utils
+from utils import feature_flags, index as utils, constants as const
 from .cluster_types import TYPE_CLUSTERS
 from tqdm import tqdm
 
@@ -22,7 +23,23 @@ class Cluster(dto.DataFrameOptimized):
     def __extract_column(column: str):
         arr = column.split("-")[:2]
         return list(range(int(arr[0])-1, int(arr[1])))
-        
+    
+    def save_actual_progress(self, data: 'pd.DataFrame', process: str, optional_end= ""):
+        """Save actual progress to file.
+
+        Args:
+            data (pd.DataFrame):data to be saved
+            process (str): actual process
+            optional_end (str, optional): optional end. Defaults to "".
+        """
+        route = os.path.join(const.ROOT_DIR, f"test/files/bases_{feature_flags.ACTUAL_BASES}/result/")
+        utils.validate_or_create_folder(route)
+
+        route_file_test = os.path.join(route, f"progress_{process}{optional_end}.pkl")
+
+        #save progress for test 
+        data.to_pickle(route_file_test)
+
     def process_base_partners(self, base_partners: dto.DataFrameOptimized) -> None:
         """Process base of partners
 
@@ -59,16 +76,19 @@ class Cluster(dto.DataFrameOptimized):
         
         #convert into number 
         if feature_flags.ENVIROMENT == "DEV":
-            base[columns[0]] = np.vectorize(func.mask_number)(base[columns[0]].astype(str)) #cod_cliente
-            base[columns[1]] = np.vectorize(func.mask_number)(base[columns[1]].astype(str)) #cod_loc
-            base[columns[2]] = np.vectorize(func.mask_number)(base[columns[2]].astype(str)) #cod_agente
+            pass
+            #delete
+            # base[columns[0]] = np.vectorize(func.mask_number)(base[columns[0]].astype(str)) #cod_cliente
+            # base[columns[1]] = np.vectorize(func.mask_number)(base[columns[1]].astype(str)) #cod_loc
+            # base[columns[2]] = np.vectorize(func.mask_number)(base[columns[2]].astype(str)) #cod_agente
+            #end delete
 
 
         base_indi = self.table[self.table["atencion"] == "Indirecta"]
         base_dir = self.table[self.table["atencion"] == "Directa"]
         
-        dir_merge = pd.concat([base_dir.dropna(subset=[columns[0]]).merge(base[[columns[0], "socios"]].drop_duplicates(), on=columns[0], how="left"),
-                    base_dir.dropna(subset=[columns[0]]).merge(base[[columns[1], "socios"]].drop_duplicates(), left_on=columns[0], right_on=columns[1], how="left")],
+        dir_merge = pd.concat([base_dir.dropna(subset=[columns[0]]).merge(base[[columns[0], "socios"]].drop_duplicates(), on=columns[0], how="left"),                    
+                               base_dir.dropna(subset=[columns[0]]).merge(base[[columns[1], "socios"]].drop_duplicates(), left_on=columns[0], right_on=columns[1], how="left")],
                     axis=0, ignore_index=True).drop_duplicates(subset=columns[:2])
 
         #delete column "cod_loc"
@@ -83,6 +103,9 @@ class Cluster(dto.DataFrameOptimized):
         partners_not_found = pd.isna(new_base["socios"]) 
         new_base.loc[partners_not_found, "socios"] = "No"
         new_base.drop_duplicates(inplace=True)
+        
+        if feature_flags.ENVIROMENT == "DEV":
+            self.save_actual_progress(new_base, process="base_partners")
 
         self.table = new_base
 
@@ -108,11 +131,14 @@ class Cluster(dto.DataFrameOptimized):
 
         #convert into number 
         if feature_flags.ENVIROMENT == "DEV":
-            table_coords[columns_coords[0]] = np.vectorize(func.mask_number)(table_coords[columns_coords[0]].astype(str)) #cod_cliente
+            # delete 
+            # table_coords[columns_coords[0]] = np.vectorize(func.mask_number)(table_coords[columns_coords[0]].astype(str)) #cod_cliente
+            # table_coords[columns_coords[3]] = np.vectorize(func.mask_number)(table_coords[columns_coords[3]].astype(str)) #cod_agente
+            # table_coords[columns_coords[4]] = np.vectorize(func.mask_number)(table_coords[columns_coords[4]].astype(str)) #cod_ecom
+            # end delete
             table_coords[columns_coords[1]] = np.vectorize(func.mask_float)(table_coords[columns_coords[1]].astype(str)) #latitud
             table_coords[columns_coords[2]] = np.vectorize(func.mask_float)(table_coords[columns_coords[2]].astype(str)) #longitud
-            table_coords[columns_coords[3]] = np.vectorize(func.mask_number)(table_coords[columns_coords[3]].astype(str)) #cod_agente
-            table_coords[columns_coords[4]] = np.vectorize(func.mask_number)(table_coords[columns_coords[4]].astype(str)) #cod_ecom
+            
 
         cols_merge_indi = ["cod_agente", "cod_ecom"]
         coords_indirecta = table_general.merge(
@@ -155,7 +181,10 @@ class Cluster(dto.DataFrameOptimized):
             if type == TYPE_CLUSTERS.DIRECTA.value:
                 #convert into number
                 if feature_flags.ENVIROMENT == "DEV":
-                    table_universe[columns_universe[0]] = np.vectorize(func.mask_number)(table_universe[columns_universe[0]].astype(str)) #cod_cliente
+                    pass
+                    #delete
+                    # table_universe[columns_universe[0]] = np.vectorize(func.mask_number)(table_universe[columns_universe[0]].astype(str)) #cod_cliente
+                    #end delete
 
                 #delete not found
                 found = ~pd.isna(table_universe[columns_universe[1:]]).all(axis=1)
@@ -185,7 +214,10 @@ class Cluster(dto.DataFrameOptimized):
                 
                 #convert into number
                 if feature_flags.ENVIROMENT == "DEV":
-                    table_universe[columns_universe[0]] = np.vectorize(func.mask_number)(table_universe[columns_universe[0]].astype(str)) #cod_agente
+                    # delete
+                    # table_universe[columns_universe[0]] = np.vectorize(func.mask_number)(table_universe[columns_universe[0]].astype(str)) #cod_agente
+                    # end delete
+                    pass
 
                 #create columns "cod_jefe" and "jefe" with "cod_agente" and "agente"
                 table_universe[["cod_jefe", "jefe"]] = table_universe[columns_universe[:2]]
@@ -202,6 +234,9 @@ class Cluster(dto.DataFrameOptimized):
                 )
 
         self.table = pd.concat(bases, ignore_index=True, axis=0)
+
+        if feature_flags.ENVIROMENT == "DEV":
+            self.save_actual_progress(self.table, process="base_universe")
 
     async def process_bases_query(self, bases_query: 'list(list[dto.DataFrameOptimized])', types: 'list(str)', lots: int = 6) -> None:
         ""
@@ -220,7 +255,6 @@ class Cluster(dto.DataFrameOptimized):
                 #delete
                 # table_query.drop(table_query[table_query[columns[1]]=="2022.05"].index, inplace=True)
                 # end delete
-                
                 #standardize year format
                 mask_no_empty_months = ~pd.isna(table_query[columns[1]])
                 table_query.loc[mask_no_empty_months, columns[1]] = \
@@ -228,7 +262,10 @@ class Cluster(dto.DataFrameOptimized):
 
                 #group values of sales
                 if feature_flags.ENVIROMENT == "DEV":
-                    table_query[table_query.columns[0]] = np.vectorize(func.mask_number)(table_query[table_query.columns[0]].astype(str)) #cod_cliente
+                    pass
+                    #delete 
+                    # table_query[table_query.columns[0]] = np.vectorize(func.mask_number)(table_query[table_query.columns[0]].astype(str)) #cod_cliente
+                    #end delete
 
                 group_base = table_query.groupby(columns[:3], as_index=False).agg({columns[3]: "sum", columns[4]: "sum"})
                 new_base = group_base.pivot_table(index=[columns[0], columns[2]], columns=columns[1], values=columns[3:], aggfunc="sum").fillna(0)
@@ -321,11 +358,13 @@ class Cluster(dto.DataFrameOptimized):
                         for sale in columns_query_2 if "venta" in sale}, inplace=True)
                 
                 if feature_flags.ENVIROMENT == "DEV":
-                    base_1[base_1.columns[0]] = np.vectorize(func.mask_number)(base_1[base_1.columns[0]].astype(str)) #cod_agente
-                    base_1[base_1.columns[1]] = np.vectorize(func.mask_number)(base_1[base_1.columns[1]].astype(str)) #cod_ecom
-                    base_2[base_2.columns[0]] = np.vectorize(func.mask_number)(base_2[base_2.columns[0]].astype(str)) #cod_agente
-                    base_2[base_2.columns[1]] = np.vectorize(func.mask_number)(base_2[base_2.columns[1]].astype(str)) #cod_ecom
-
+                    pass
+                    #delete
+                    # base_1[base_1.columns[0]] = np.vectorize(func.mask_number)(base_1[base_1.columns[0]].astype(str)) #cod_agente
+                    # base_1[base_1.columns[1]] = np.vectorize(func.mask_number)(base_1[base_1.columns[1]].astype(str)) #cod_ecom
+                    # base_2[base_2.columns[0]] = np.vectorize(func.mask_number)(base_2[base_2.columns[0]].astype(str)) #cod_agente
+                    # base_2[base_2.columns[1]] = np.vectorize(func.mask_number)(base_2[base_2.columns[1]].astype(str)) #cod_ecom
+                    # end delete
 
                 #merge both bases year before and year after
                 new_base = base_1.merge(
@@ -475,6 +514,9 @@ class Cluster(dto.DataFrameOptimized):
         self.table["dist_prom_kilos"] = stats.norm.cdf(self.table["variacion_prom_kilos"])
         self.table.loc[mask_limit_kilos,"dist_prom_kilos"] = stats.norm.ppf(0.75)
 
+        if feature_flags.ENVIROMENT == "DEV":
+            self.save_actual_progress(self.table, process="base_queries")
+
     def post_process_base(self, final_base: list) -> None:
         """Post process final base
         """
@@ -489,6 +531,10 @@ class Cluster(dto.DataFrameOptimized):
         self.table["direccion"] = self.table["direccion"].str[:30]
 
         self.table = self.table[final_base]
+
+        if feature_flags.ENVIROMENT == "DEV":
+            self.save_actual_progress(self.table, process="base_final")
+
 
     def get_active_months(self, row_values: pd.Series, lots: int, umbral: int = 0.3) -> 'tuple(float, float)':
         """Get months active based on rules

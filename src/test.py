@@ -2,6 +2,7 @@ import os
 import re
 import asyncio
 import functools
+import shutil
 import pandas as pd
 import cProfile
 import pstats
@@ -9,7 +10,7 @@ import pstats
 from cluster.cluster import Cluster
 from concurrent.futures import ThreadPoolExecutor
 from dataframes.dataframe_optimized import DataFrameOptimized
-from utils import constants as const, index as utils
+from utils import constants as const, index as utils, feature_flags as ft
 
 async def get_bases(sources: dict[str, str], files: list[str], cached_data: bool = False) -> 'tuple(list[str], list[DataFrameOptimized])':
     """Get DataFrames of sources
@@ -56,14 +57,21 @@ async def get_bases(sources: dict[str, str], files: list[str], cached_data: bool
 
             results = await asyncio.gather(*futures)
 
+        route = os.path.join(const.ROOT_DIR, f'test/files/bases_{ft.ACTUAL_BASES}')
+        utils.validate_or_create_folder(route)
+
         for key, base in zip(keys, results): 
             if isinstance(base, (list, tuple)):
                 if "_directa" in key:
                     print("stop")
                 for idx in range(len(base)):
                     base[idx].table.to_csv(f"{os.path.join(const.ROOT_DIR, 'files/temp')}/{key}_{idx}.csv", encoding="utf-8", index = None)
+                    if ft.ENVIROMENT == "DEV":
+                        base[idx].table.to_csv(f"{route}/{key}_{idx}.csv", encoding="utf-8", index = None)
             else:
                 base.table.to_csv(f"{os.path.join(const.ROOT_DIR, 'files/temp')}/{key}.csv", encoding="utf-8", index = None)
+                if ft.ENVIROMENT == "DEV":
+                    base.table.to_csv(f"{route}/{key}.csv", encoding="utf-8", index = None)
 
         return dict(zip(keys, results))
 
@@ -106,15 +114,18 @@ config = utils.get_config(os.path.join(const.ROOT_DIR, "config.yml"))
 files_found = get_predeterminated_files(os.path.join(const.ROOT_DIR, "files/Bases"))
 sources = config["sources"]
 
-#actual event loop
-loop = asyncio.get_event_loop()
+if ft.ENVIROMENT == "DEV": #save config for actual group of bases
+    shutil.copyfile(os.path.join(const.ROOT_DIR, "config.yml"), os.path.join(const.ROOT_DIR, f"test/files/bases_{ft.ACTUAL_BASES}/config.yml"))
 
 # delete
 # loop.run_until_complete(get_bases({'base_universo_indirecta':sources['base_universo_indirecta']}, files_found, cached_data=False))
 # end delete
 
+#actual event loop
+loop = asyncio.get_event_loop()
+
 print("processing bases...")
-bases = loop.run_until_complete(get_bases(sources, files_found, cached_data=False))  
+bases = loop.run_until_complete(get_bases(sources, files_found, cached_data=True))  
 
 final_base = Cluster()
 with cProfile.Profile() as pr:
