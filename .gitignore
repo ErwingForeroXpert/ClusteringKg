@@ -17,4 +17,5 @@ _dev*
 *.zip
 *.log
 *.pkl
+*.prof
 ~$*

@@ -121,54 +121,121 @@ class TestClusterClass(unittest.TestCase):
                 count += 1
             else:
                 break
-            
+                
+    def test_all(self) -> None:
+        
+        self.test_process_base_universe()
+        self.test_process_base_partners()
+        self.test_process_base_coords()
+        self.test_process_base_queries()
 
+    @unittest.skip
+    def test_process_base_universe(self) -> None:
+
+        for _, dirs, _ in os.walk(test_const.TEST_FILES):
+
+            base = int(re.search("\d+", dirs[0]).group(0)) 
+            root_dir = os.path.join(test_const.TEST_FILES, dirs[0])
+            config = utils.get_config(os.path.join(root_dir, f"config.yml"))
+            cluster = Cluster()
+
+            _, files_test, files_val = self.get_bases(
+                config = config,
+                path_test = root_dir, 
+                path_validation = os.path.join(root_dir, "result"),
+                base = base,
+                types = ["raw", "validation"])
+
+            cluster.process_bases_universe([files_test["base_universo_directa"], files_test["base_universo_indirecta"]],
+                types = [TYPE_CLUSTERS.DIRECTA, TYPE_CLUSTERS.INDIRECTA])
+
+            pdtest.assert_frame_equal(
+                files_val["base_universo"],
+                cluster.table,
+                check_dtype = False,
+                check_less_precise = 2,
+                check_index = False
+            )
+
+    @unittest.skip
     def test_process_base_partners(self) -> None:
         for _, dirs, _ in os.walk(test_const.TEST_FILES):
-            if os.path.exists((root_dir:=os.path.join(test_const.TEST_FILES, dirs[0]))):
-                config = utils.get_config(os.path.join(root_dir, f"config.yml"))
-                _, files_test, files_val = self.get_bases(
-                    config = config,
-                    path_test = root_dir, 
-                    path_validation = os.path.join(root_dir, "result"),
-                    types = ["test", "validation"])
+            
+            base = int(re.search("\d+", dirs[0]).group(0)) 
+            root_dir = os.path.join(test_const.TEST_FILES, dirs[0])
+            config = utils.get_config(os.path.join(root_dir, f"config.yml"))
+            previous_cluster = Cluster(table = pd.read_pickle(os.path.join(root_dir, "progress_base_universo.pkl")))
 
-                self.cache_cluster.process_base_partners(files_test["base_socios"])
+            _, files_test, files_val = self.get_bases(
+                config = config,
+                path_test = root_dir, 
+                path_validation = os.path.join(root_dir, "result"),
+                base = base,
+                types = ["test", "validation"])
 
-                pdtest.assert_frame_equal(
-                    files_val["base_socios"],
-                    self.cache_cluster.table,
-                    check_dtype = False,
-                    check_less_precise = 2,
-                    check_index = False
-                )
-            else:
-                break
+            previous_cluster.process_base_partners(files_test["base_socios"])
 
+            pdtest.assert_frame_equal(
+                files_val["base_socios"],
+                previous_cluster.table,
+                check_dtype = False,
+                check_less_precise = 2,
+                check_index = False
+            )
+
+    @unittest.skip
     def test_process_base_coords(self) -> None:
-        count = 0
+
         for _, dirs, _ in os.walk(test_const.TEST_FILES):
-            if os.path.exists((root_dir:=os.path.join(dirs[0], f"base_{count}"))):
-                config = os.path.join(root_dir, f"config.yml")
-                _, files_test, files_val = self.get_bases(
-                    config = config,
-                    files_test = test_utils.get_predeterminated_files(root_dir), 
-                    path_validation = os.path.join(root_dir, "result"),
-                    types = ["test", "validation"])
 
-                result = self.cache_cluster.process_base_partners(files_test["base_socios"])
+            base = int(re.search("\d+", dirs[0]).group(0)) 
+            root_dir = os.path.join(test_const.TEST_FILES, dirs[0])
+            config = utils.get_config(os.path.join(root_dir, f"config.yml"))
+            previous_cluster = Cluster(table = pd.read_pickle(os.path.join(root_dir, "progress_base_socios.pkl")))
 
-                pdtest.assert_frame_equal(
-                    files_val["base_coordenadas"],
-                    result,
-                    check_dtype = False,
-                    check_less_precise = 2,
-                    check_index = False
-                )
-                
-                count += 1
-            else:
-                break
+            _, files_test, files_val = self.get_bases(
+                config = config,
+                path_test = root_dir, 
+                path_validation = os.path.join(root_dir, "result"),
+                base = base,
+                types = ["test", "validation"])
+
+            previous_cluster.process_base_coords(files_test["base_coordenadas"])
+
+            pdtest.assert_frame_equal(
+                files_val["base_coordenadas"],
+                previous_cluster.table,
+                check_dtype = False,
+                check_less_precise = 2,
+                check_index = False
+            )
+
+    @unittest.skip
+    def test_process_base_queries(self) -> None:
+
+        for _, dirs, _ in os.walk(test_const.TEST_FILES):
+
+            base = int(re.search("\d+", dirs[0]).group(0)) 
+            root_dir = os.path.join(test_const.TEST_FILES, dirs[0])
+            config = utils.get_config(os.path.join(root_dir, f"config.yml"))
+            previous_cluster = Cluster(table = pd.read_pickle(os.path.join(root_dir, "progress_base_socios.pkl")))
+
+            _, files_test, files_val = self.get_bases(
+                config = config,
+                path_test = root_dir, 
+                path_validation = os.path.join(root_dir, "result"),
+                base = base,
+                types = ["test", "validation"])
+
+            previous_cluster.process_base_coords(files_test["base_coordenadas"])
+
+            pdtest.assert_frame_equal(
+                files_val["base_coordenadas"],
+                previous_cluster.table,
+                check_dtype = False,
+                check_less_precise = 2,
+                check_index = False
+            )
 
     def test_process_converters(self) -> None:
         convert = ["text", "number", "float"]

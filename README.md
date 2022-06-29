@@ -113,6 +113,14 @@ For test the cluster class base need the following:
 
 ### Run 
 
+Change the feature flag **ENVIROMENT** inside ```src\utils\feature_flags.py```
+
+```python
+  ...
+  ENVIROMENT = "TEST" #actual enviroment of project DEV or PROD, "TEST"
+  ...
+```
+
 For run test only need the next command inside console
 
 ```bash

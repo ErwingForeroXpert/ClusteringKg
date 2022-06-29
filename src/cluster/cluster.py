@@ -168,7 +168,6 @@ class Cluster(dto.DataFrameOptimized):
         if feature_flags.ENVIROMENT == "DEV":
             self.save_actual_progress(self.table, process="base_coordenadas")
 
-
     def process_bases_universe(self, bases_universe: 'list(dto.DataFrameOptimized)', types: 'list(str)') -> None:
         """Processes the bases_universe columns and returns a new list of bases .
 
