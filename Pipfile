@@ -22,6 +22,7 @@ black = "*"
 yapf = "*"
 ipykernel = "*"
 snakeviz = "*"
+nest-asyncio = "*"
 
 [requires]
 python_version = "3.9"

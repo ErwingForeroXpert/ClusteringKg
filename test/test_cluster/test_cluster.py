@@ -24,7 +24,7 @@ class TestClusterClass(unittest.TestCase):
 
         result = {}
         for file in os.listdir(path_validation):
-            if(v:=re.search(r"(?<=progress_).*(?=\.*)", file)) is not None:
+            if(v:=re.search(r"(?<=progress_).*(?=\..*)", file)) is not None:
                 result[v.group(0)] = pd.read_pickle(os.path.join(path_validation, file))
         return result
 
@@ -34,7 +34,7 @@ class TestClusterClass(unittest.TestCase):
 
         if "raw" in types:
             if base not in self.cache_raw.keys():
-                raw = await test_utils.get_bases(config["sources"], files_raw, cached_data=False)
+                raw = await test_utils.get_bases(sources = config["sources"], files = files_raw, cached_data = False)
                 self.cache_raw[base] = raw
             else:
                 raw = self.cache_raw[base]
@@ -56,86 +56,152 @@ class TestClusterClass(unittest.TestCase):
         return raw, test, validation
     
     def test_actual_bases(self) -> None:
+        """Test actual bases in project
 
-        route_test_files = os.path.join(test_const.TEST_FILES, f"base_{ft.ACTUAL_BASES}")
+            Expected:
+            <feature flag> ACTUAL_BASES with the number of group bases
+            <feature flag> ENVIROMENT with TEST inside
+
+            Return: None if all test pas
+        """
+
+        route_test_files = os.path.join(test_const.TEST_FILES, f"bases_{ft.ACTUAL_BASES}")
         route_raw_files = os.path.join(const.ROOT_DIR, f"files/Bases")
-        config = utils.get_config(os.path.join(const.ROOT_DIR, "/config.yml"))
+        config = utils.get_config(os.path.join(const.ROOT_DIR, "config.yml"))
 
         files_raw = test_utils.get_predeterminated_files(route_raw_files)
-        files_test = test_utils.get_predeterminated_files(route_test_files)
 
         print("processing bases...")
-        bases_raw, bases_test, _ = self.get_bases(config, files_raw, files_test, ft.ACTUAL_BASES)
+        bases_raw, bases_test, _ = self.get_bases(config, files_raw = files_raw, path_test = route_test_files, base = ft.ACTUAL_BASES)
 
         for key in bases_raw.keys():
             if utils.is_iterable(bases_raw[key]):
                 for base_left, base_right in zip(bases_raw[key], bases_test[key]):
                     pdtest.assert_frame_equal(
-                        base_left,
-                        base_right,
+                        base_left.table,
+                        base_right.table,
                         check_dtype = False,
                         check_less_precise = 2,
-                        check_index = False
+                        check_names = False
                     )
             else:
                 pdtest.assert_frame_equal(
-                    bases_raw[key],
-                    bases_test[key],
+                    bases_raw[key].table,
+                    bases_test[key].table,
                     check_dtype = False,
                     check_less_precise = 2,
-                    check_index = False
+                    check_names = False
                 )
 
     @test_utils.async_test
     async def test_multiple_bases(self) -> None:
-        count = 0
-        for _, dirs, _ in os.walk(test_const.TEST_FILES):
-            if os.path.exists((root_dir:=os.path.join(dirs[0], f"base_{count}"))):
-                config = os.path.join(root_dir, f"config.yml")
-                files = test_utils.get_predeterminated_files(root_dir)
+        """Test multiples bases inside the folder files
 
-                print(f"processing bases...{count}")
-                bases = await test_utils.get_bases(config["sources"], files, cached_data=True)
-                pair_bases = []
+            Expected:
+            inside route test\files almost has one folder base_n with files
 
-                for key in config["order"]:
-                    if "socios" in key.lower():
-                        result = self.cache_cluster.process_base_partners(bases[key]) 
-                        
-                    elif "coordenadas" in key.lower():
-                        self.process_base_coords(bases[key])
+            Return: None if all test pas
+        """
+        for dir in os.listdir(test_const.TEST_FILES):
 
-                    elif "universo_directa" in key.lower():
-                        pair_bases.append(bases[key])
+            base = int(re.search("\d+", dir).group(0))
+            root_dir = os.path.join(test_const.TEST_FILES, dir)
+            config = utils.get_config(os.path.join(root_dir, f"config.yml"))
+            cluster = Cluster()
 
-                    elif "universo_indirecta" in key.lower():
-                        self.process_bases_universe(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
-                        pair_bases = []
+            print(f"processing bases...{base}")
 
-                    elif "consulta_directa" in key.lower():
-                        pair_bases.append(bases[key])
+            _, files_test, files_val = self.get_bases(
+                config = config,
+                path_test = root_dir, 
+                path_validation = os.path.join(root_dir, "result"),
+                base = base,
+                types = ["test", "validation"])
 
-                    elif "consulta_indirecta" in key.lower():
-                        pair_bases.append(bases[key])
-                        await self.process_bases_query(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
-                count += 1
-            else:
-                break
-                
+            pair_bases = []
+
+            for key in config["order_base"]:
+                if "socios" in key.lower():
+                    cluster.process_base_partners(files_test[key]) 
+                    pdtest.assert_frame_equal(
+                        files_val["base_socios"],
+                        cluster.table,
+                        check_dtype = False,
+                        check_less_precise = 2,
+                        check_names = False
+                    )
+                elif "coordenadas" in key.lower():
+                    cluster.process_base_coords(files_test[key]) 
+                    pdtest.assert_frame_equal(
+                        files_val["base_coordenadas"],
+                        cluster.table,
+                        check_dtype = False,
+                        check_less_precise = 2,
+                        check_names = False
+                    )
+                elif "universo_directa" in key.lower():
+                    pair_bases.append(files_test[key])
+
+                elif "universo_indirecta" in key.lower():
+                    pair_bases.append(files_test[key])
+                    cluster.process_bases_universe(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
+                    pdtest.assert_frame_equal(
+                        files_val["base_universo"],
+                        cluster.table,
+                        check_dtype = False,
+                        check_less_precise = 2,
+                        check_names = False
+                    )
+                    pair_bases = []
+
+                elif "consulta_directa" in key.lower():
+                    pair_bases.append(files_test[key])
+
+                elif "consulta_indirecta" in key.lower():
+                    pair_bases.append(files_test[key])
+                    await cluster.process_bases_query(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
+                    pdtest.assert_frame_equal(
+                        files_val["base_consulta"],
+                        cluster.table,
+                        check_dtype = False,
+                        check_less_precise = 2,
+                        check_names = False
+                    )
+
+            cluster.post_process_base(config["final_base"])
+            pdtest.assert_frame_equal(
+                        files_val["base_final"],
+                        cluster.table,
+                        check_dtype = False,
+                        check_less_precise = 2,
+                        check_names = False
+                    )
+
     def test_all(self) -> None:
-        
+        """Test all steps of bases
+
+            Expected:
+            <feature flag> ENVIROMENT with TEST inside
+
+            Return: None if all test pas
+        """
         self.test_process_base_universe()
         self.test_process_base_partners()
         self.test_process_base_coords()
         self.test_process_base_queries()
 
-    @unittest.skip
     def test_process_base_universe(self) -> None:
+        """Test all groups of bases only in process: "proceso de bases de universo"
 
-        for _, dirs, _ in os.walk(test_const.TEST_FILES):
+            Expected:
+            <feature flag> ENVIROMENT with TEST inside
 
-            base = int(re.search("\d+", dirs[0]).group(0)) 
-            root_dir = os.path.join(test_const.TEST_FILES, dirs[0])
+            Return: None if all test pas
+        """
+        for dir in os.listdir(test_const.TEST_FILES):
+
+            base = int(re.search("\d+", dir).group(0)) 
+            root_dir = os.path.join(test_const.TEST_FILES, dir)
             config = utils.get_config(os.path.join(root_dir, f"config.yml"))
             cluster = Cluster()
 
@@ -144,27 +210,33 @@ class TestClusterClass(unittest.TestCase):
                 path_test = root_dir, 
                 path_validation = os.path.join(root_dir, "result"),
                 base = base,
-                types = ["raw", "validation"])
+                types = ["test", "validation"])
 
             cluster.process_bases_universe([files_test["base_universo_directa"], files_test["base_universo_indirecta"]],
-                types = [TYPE_CLUSTERS.DIRECTA, TYPE_CLUSTERS.INDIRECTA])
+                types = [TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value])
 
             pdtest.assert_frame_equal(
                 files_val["base_universo"],
                 cluster.table,
                 check_dtype = False,
                 check_less_precise = 2,
-                check_index = False
+                check_names = False
             )
 
-    @unittest.skip
     def test_process_base_partners(self) -> None:
-        for _, dirs, _ in os.walk(test_const.TEST_FILES):
+        """Test all groups of bases only in process: "proceso de bases de universo"
+
+            Expected:
+            <feature flag> ENVIROMENT with TEST inside
+
+            Return: None if all test pas
+        """
+        for dir in os.listdir(test_const.TEST_FILES):
             
-            base = int(re.search("\d+", dirs[0]).group(0)) 
-            root_dir = os.path.join(test_const.TEST_FILES, dirs[0])
+            base = int(re.search("\d+", dir).group(0)) 
+            root_dir = os.path.join(test_const.TEST_FILES, dir)
             config = utils.get_config(os.path.join(root_dir, f"config.yml"))
-            previous_cluster = Cluster(table = pd.read_pickle(os.path.join(root_dir, "progress_base_universo.pkl")))
+            previous_cluster = Cluster(table = pd.read_pickle(os.path.join(root_dir, "result/progress_base_universo.pkl")))
 
             _, files_test, files_val = self.get_bases(
                 config = config,
@@ -180,18 +252,23 @@ class TestClusterClass(unittest.TestCase):
                 previous_cluster.table,
                 check_dtype = False,
                 check_less_precise = 2,
-                check_index = False
+                check_names = False
             )
 
-    @unittest.skip
     def test_process_base_coords(self) -> None:
+        """Test all groups of bases only in process: "proceso de bases de coordenadas"
 
-        for _, dirs, _ in os.walk(test_const.TEST_FILES):
+            Expected:
+            <feature flag> ENVIROMENT with TEST inside
 
-            base = int(re.search("\d+", dirs[0]).group(0)) 
-            root_dir = os.path.join(test_const.TEST_FILES, dirs[0])
+            Return: None if all test pas
+        """
+        for dir in os.listdir(test_const.TEST_FILES):
+
+            base = int(re.search("\d+", dir).group(0)) 
+            root_dir = os.path.join(test_const.TEST_FILES, dir)
             config = utils.get_config(os.path.join(root_dir, f"config.yml"))
-            previous_cluster = Cluster(table = pd.read_pickle(os.path.join(root_dir, "progress_base_socios.pkl")))
+            previous_cluster = Cluster(table = pd.read_pickle(os.path.join(root_dir, "result/progress_base_socios.pkl")))
 
             _, files_test, files_val = self.get_bases(
                 config = config,
@@ -201,24 +278,30 @@ class TestClusterClass(unittest.TestCase):
                 types = ["test", "validation"])
 
             previous_cluster.process_base_coords(files_test["base_coordenadas"])
-
+            
             pdtest.assert_frame_equal(
                 files_val["base_coordenadas"],
                 previous_cluster.table,
                 check_dtype = False,
                 check_less_precise = 2,
-                check_index = False
+                check_names = False
             )
 
-    @unittest.skip
-    def test_process_base_queries(self) -> None:
+    @test_utils.async_test
+    async def test_process_base_queries(self) -> None:
+        """Test all groups of bases only in process: "proceso de bases de consulta"
 
-        for _, dirs, _ in os.walk(test_const.TEST_FILES):
+            Expected:
+            <feature flag> ENVIROMENT with TEST inside
 
-            base = int(re.search("\d+", dirs[0]).group(0)) 
-            root_dir = os.path.join(test_const.TEST_FILES, dirs[0])
+            Return: None if all test pas
+        """
+        for dir in os.listdir(test_const.TEST_FILES):
+
+            base = int(re.search("\d+", dir).group(0)) 
+            root_dir = os.path.join(test_const.TEST_FILES, dir)
             config = utils.get_config(os.path.join(root_dir, f"config.yml"))
-            previous_cluster = Cluster(table = pd.read_pickle(os.path.join(root_dir, "progress_base_socios.pkl")))
+            previous_cluster = Cluster(table = pd.read_pickle(os.path.join(root_dir, "result/progress_base_coordenadas.pkl")))
 
             _, files_test, files_val = self.get_bases(
                 config = config,
@@ -227,22 +310,30 @@ class TestClusterClass(unittest.TestCase):
                 base = base,
                 types = ["test", "validation"])
 
-            previous_cluster.process_base_coords(files_test["base_coordenadas"])
+            await previous_cluster.process_bases_query([files_test["base_consulta_directa"], files_test["base_consulta_indirecta"]],
+                types = [TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value])
 
             pdtest.assert_frame_equal(
-                files_val["base_coordenadas"],
+                files_val["base_consulta"],
                 previous_cluster.table,
                 check_dtype = False,
                 check_less_precise = 2,
-                check_index = False
+                check_names = False
             )
 
     def test_process_converters(self) -> None:
-        convert = ["text", "number", "float"]
+        """Test function to process the converters
+
+            Expected:
+            <feature flag> ENVIROMENT with TEST inside
+
+            Return: None if all test pas
+        """
+        convert = [{"key1":"text"}, {"key2":"number"}, {"key3":"float"}]
         conv_expected = [func.mask_string, func.mask_number, func.mask_float]
         for conv, expect in zip(convert, conv_expected):
-            res = Cluster.process_converters(conv)
-            self.assertIsInstance(res, conv_expected)
+            res = Cluster.process_converters(conv, None)
+            self.assertEqual(res[list(conv.keys())[0]], expect)
 
     @classmethod   
     def tearDown(cls) -> None:

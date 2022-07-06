@@ -131,13 +131,15 @@ class Cluster(dto.DataFrameOptimized):
 
         #convert into number 
         if feature_flags.ENVIROMENT == "DEV":
+            pass
             # delete 
             # table_coords[columns_coords[0]] = np.vectorize(func.mask_number)(table_coords[columns_coords[0]].astype(str)) #cod_cliente
             # table_coords[columns_coords[3]] = np.vectorize(func.mask_number)(table_coords[columns_coords[3]].astype(str)) #cod_agente
             # table_coords[columns_coords[4]] = np.vectorize(func.mask_number)(table_coords[columns_coords[4]].astype(str)) #cod_ecom
             # end delete
-            table_coords[columns_coords[1]] = np.vectorize(func.mask_float)(table_coords[columns_coords[1]].astype(str)) #latitud
-            table_coords[columns_coords[2]] = np.vectorize(func.mask_float)(table_coords[columns_coords[2]].astype(str)) #longitud
+            
+        table_coords[columns_coords[1]] = np.vectorize(func.mask_float)(table_coords[columns_coords[1]].astype(str)) #latitud
+        table_coords[columns_coords[2]] = np.vectorize(func.mask_float)(table_coords[columns_coords[2]].astype(str)) #longitud
             
 
         cols_merge_indi = ["cod_agente", "cod_ecom"]
@@ -537,7 +539,6 @@ class Cluster(dto.DataFrameOptimized):
 
         if feature_flags.ENVIROMENT == "DEV":
             self.save_actual_progress(self.table, process="base_final")
-
 
     def get_active_months(self, row_values: pd.Series, lots: int, umbral: int = 0.3) -> 'tuple(float, float)':
         """Get months active based on rules

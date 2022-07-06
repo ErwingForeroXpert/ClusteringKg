@@ -8,6 +8,9 @@ from dataframes.dataframe_optimized import DataFrameOptimized
 from cluster.cluster import Cluster
 from utils import constants as const, index as utils
 
+import nest_asyncio 
+nest_asyncio.apply()
+
 async def get_bases(path: str = None, sources: dict[str, str] = None, files: list[str] = None, cached_data: bool = False) -> dict:
     """Get bases of path
 
