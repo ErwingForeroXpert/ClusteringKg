@@ -107,7 +107,7 @@ def get_predeterminated_files(_path: str):
                     found["base_consulta_directa"] = "|".join(files)
         return found
 
-utils.create_necesary_folders(os.path.join(const.ROOT_DIR, "files"), ["utils", "temp", "alerts"])
+utils.create_necesary_folders(os.path.join(const.ROOT_DIR, "files"), ["utils", "temp", "alerts", "Base"])
 
 #load config, paths and structure of files
 config = utils.get_config(os.path.join(const.ROOT_DIR, "config.yml"))
