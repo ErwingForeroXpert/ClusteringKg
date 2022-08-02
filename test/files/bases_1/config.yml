@@ -1,0 +1,190 @@
+sources:
+    base_socios:
+        type: file
+        sheet: Consolidado
+        skiprows: 1
+        encoding: latin-1
+        columns: 
+            - column: cod_cliente
+              pos: 1
+            - column: cod_loc
+              pos: 2
+            - column: cod_agente
+              pos: 3
+            - column: atencion
+              pos: 4
+        converters:
+            cod_cliente: text
+            cod_loc: text
+            cod_agente: text
+    base_coordenadas:
+        type: file
+        sheet: Base
+        skiprows: 1
+        encoding: latin-1
+        columns: 
+            - column: cod_cliente
+              pos: 1
+            - column: latitud
+              pos: 2
+            - column: longitud
+              pos: 3
+            - column: cod_agente
+              pos: 4
+            - column: cod_ecom
+              pos: 5
+        converters:
+            cod_cliente: text
+            cod_agente: text
+            cod_ecom: text
+    base_universo_directa:
+        type: file
+        sheet: Maestra
+        skiprows: 1
+        encoding: latin-1
+        columns: 
+            - column: cod_cliente
+              pos: 2
+            - column: nom_cliente
+              pos: 5
+            - column: direccion
+              pos: 10
+            - column: cod_vendedor
+              pos: 24
+            - column: vendedor
+              pos: 25
+            - column: subcanal
+              pos: 49
+            - column: cod_jefe
+              pos: 57
+            - column: jefe
+              pos: 58
+        converters:
+            cod_cliente: text
+            cod_vendedor: text
+            cod_jefe: text
+    base_universo_indirecta:
+          type: file
+          sheet: BD
+          skiprows: 1
+          encoding: latin-1
+          columns:
+              - column: cod_agente
+                pos: 2 
+              - column: agente
+                pos: 3 
+              - column: cod_cliente
+                pos: 7 
+              - column: nom_cliente
+                pos: 8
+              - column: direccion
+                pos: 14
+              - column: subcanal
+                pos: 28
+          converters:
+              cod_cliente: text
+              cod_agente: text
+    base_consulta_directa:
+          type: folder
+          sheet: 0
+          skiprows: 1
+          encoding: latin-1
+          columns: 
+              - - column: cod_cliente
+                  pos: 1
+                - column: mes
+                  pos: 2
+                - column: marca
+                  pos: 3
+                - column: venta_pesos
+                  pos: 4
+                - column: venta_kilos
+                  pos: 5
+          converters:
+              cod_cliente: text
+              mes: text
+              venta_pesos: float
+              venta_kilos: float
+    base_consulta_indirecta:
+        type: folder
+        sheet: 0
+        skiprows: 3
+        encoding: latin-1
+        columns: 
+            - - column: cod_agente
+                pos: 1
+              - column: cod_ecom
+                pos: 2
+              - column: marca
+                pos: 3
+              - column: venta_pesos
+                pos: '4-15'
+              - column: venta_kilos
+                pos: '16-27'
+            - - column: cod_agente
+                pos: 1
+              - column: cod_ecom
+                pos: 2
+              - column: marca
+                pos: 3
+              - column: venta_pesos
+                pos: '4-8'
+              - column: venta_kilos
+                pos: '9-13'
+        converters:
+              cod_agente: text
+              cod_ecom: text
+              venta_pesos: float
+              venta_kilos: float
+order_base:
+  - base_universo_directa
+  - base_universo_indirecta
+  - base_socios
+  - base_coordenadas
+  - base_consulta_directa
+  - base_consulta_indirecta
+final_base:
+    - cod_cliente
+    - nom_cliente
+    - atencion
+    - direccion
+    - subcanal
+    - cod_vendedor
+    - vendedor
+    - cod_vendedor_2
+    - vendedor_2
+    - cod_jefe
+    - jefe
+    - socios
+    - latitud
+    - longitud
+    - prom_ant_kilos
+    - prom_act_kilos
+    - prom_ant_kilos_marca_1
+    - prom_act_kilos_marca_1
+    - prom_ant_kilos_marca_2
+    - prom_act_kilos_marca_2
+    - prom_ant_kilos_marca_3
+    - prom_act_kilos_marca_3
+    - prom_ant_kilos_marca_4
+    - prom_act_kilos_marca_4
+    - status_marca_1
+    - status_marca_2
+    - status_marca_3
+    - status_marca_4
+    - prom_ant_pesos
+    - prom_act_pesos
+    - prom_ant_pesos_marca_1
+    - prom_act_pesos_marca_1
+    - prom_ant_pesos_marca_2
+    - prom_act_pesos_marca_2
+    - prom_ant_pesos_marca_3
+    - prom_act_pesos_marca_3
+    - prom_ant_pesos_marca_4
+    - prom_act_pesos_marca_4
+    - meses_ant_activos
+    - meses_act_activos
+    - variacion_prom_pesos
+    - variacion_prom_kilos
+    - dist_prom_pesos
+    - dist_prom_kilos

@@ -3,5 +3,5 @@
 #    @author: ErwingForero 
 # 
 
-ENVIROMENT = "TEST" #actual enviroment of project DEV or PROD, "TEST"
-ACTUAL_BASES = 0 # number of group bases 
+ENVIROMENT = "DEV" #actual enviroment of project DEV or PROD, "TEST"
+ACTUAL_BASES = 1 # number of group bases 
