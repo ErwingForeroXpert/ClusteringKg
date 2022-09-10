@@ -107,7 +107,7 @@ def get_predeterminated_files(_path: str):
                     found["base_consulta_directa"] = "|".join(files)
         return found
 
-utils.create_necesary_folders(os.path.join(const.ROOT_DIR, "files"), ["utils", "temp", "alerts", "Base"])
+utils.create_necesary_folders(os.path.join(const.ROOT_DIR, "files"), ["utils", "temp", "alerts", "Bases"])
 
 #load config, paths and structure of files
 config = utils.get_config(os.path.join(const.ROOT_DIR, "config.yml"))
@@ -130,7 +130,7 @@ bases = loop.run_until_complete(get_bases(sources, files_found, cached_data=True
 
 final_base = Cluster()
 with cProfile.Profile() as pr:
-    loop.run_until_complete(final_base.merge_all(bases, config)) 
+    loop.run_until_complete(final_base.merge_all(bases, config, lots = 6)) 
 
 stats = pstats.Stats(pr)
 stats.sort_stats(pstats.SortKey.TIME)

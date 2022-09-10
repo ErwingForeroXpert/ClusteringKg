@@ -244,7 +244,13 @@ class Cluster(dto.DataFrameOptimized):
             self.save_actual_progress(self.table, process="base_universo")
 
     async def process_bases_query(self, bases_query: 'list(list[dto.DataFrameOptimized])', types: 'list(str)', lots: int = 6) -> None:
-        ""
+        """Process for process of query
+
+        Args:
+            bases_query (list): bases with information
+            types (list): types of bases for process information, see AFO_TYPES
+            lots (int, optional): group of months to process. Defaults to 6.
+        """
         bases = []
         general_bases = []
         columns_general = self.table.columns.to_list()
@@ -645,7 +651,7 @@ class Cluster(dto.DataFrameOptimized):
 
         return prom_ant, prom_act, status
 
-    async def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', properties: dict) -> None:
+    async def merge_all(self, bases: 'dict[str, dto.DataFrameOptimized]', properties: dict, lots: int) -> None:
         """Merge all bases
 
         Args:
@@ -683,7 +689,7 @@ class Cluster(dto.DataFrameOptimized):
             elif "consulta_indirecta" in key.lower():
                 pbar.write(f'procesando las bases de consulta...') 
                 pair_bases.append(bases[key])
-                await self.process_bases_query(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value))
+                await self.process_bases_query(pair_bases, types=(TYPE_CLUSTERS.DIRECTA.value, TYPE_CLUSTERS.INDIRECTA.value), lots = lots)
                 pbar.update(1)
 
         pbar.write(f'post procesando base...')     
@@ -762,7 +768,6 @@ class Cluster(dto.DataFrameOptimized):
             year = None
 
             for file in path:
-
                 if year != (v:=re.search(r"(?<=_)(\d{4})(?=\.*)", file).group(0)): 
                     year = v
                     actual_year = min(len(properties["columns"])-1, actual_year+1)
