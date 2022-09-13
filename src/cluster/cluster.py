@@ -379,11 +379,11 @@ class Cluster(dto.DataFrameOptimized):
                     # end delete
 
                 #merge both bases year before and year after
-                new_base = base_1.merge(
-                    right=base_2, 
-                    right_on=base_2.columns.tolist()[:3], #cod_agente, cod_ecom, marca
-                    left_on= columns_query_1[:3], 
-                    how="left"
+                new_base = base_1.merge( #ERROR both no left
+                    right = base_2, 
+                    right_on = base_2.columns.tolist()[:3], #cod_agente, cod_ecom, marca
+                    left_on = columns_query_1[:3], 
+                    how="outer"
                 )
 
                 cols_pesos = sorted([col for col in new_base.columns.tolist() if "venta_pesos" in col.lower()], key=lambda x: func.mask_number(x))
@@ -555,9 +555,9 @@ class Cluster(dto.DataFrameOptimized):
             lots (int): size of division values.
 
                 Example: lots = 6, size_values = 18
-                actual: 18-12
-                anterior: 11-5
-                viejo: 0-4
+                    actual: 18-12
+                    anterior: 11-5
+                    viejo: 0-4
 
             umbral (int, optional): umbral of valid active lots. Defaults to 0.3.
 

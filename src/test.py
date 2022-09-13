@@ -62,8 +62,6 @@ async def get_bases(sources: dict[str, str], files: list[str], cached_data: bool
 
         for key, base in zip(keys, results): 
             if isinstance(base, (list, tuple)):
-                if "_directa" in key:
-                    print("stop")
                 for idx in range(len(base)):
                     base[idx].table.to_csv(f"{os.path.join(const.ROOT_DIR, 'files/temp')}/{key}_{idx}.csv", encoding="utf-8", index = None)
                     if ft.ENVIROMENT == "DEV":
